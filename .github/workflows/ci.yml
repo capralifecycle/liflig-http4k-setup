@@ -60,8 +60,6 @@ jobs:
         env:
           # NOTE: Use the following token if your project does not depend on private packages:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NOTE: Use the following token if your project depends on private packages:
-          # GITHUB_TOKEN: ${{ secrets.SHARED_GITHUB_PACKAGES_TOKEN }}
         run: mvn -B dependency:resolve
 
       - name: conditional release
