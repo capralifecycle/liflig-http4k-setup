@@ -15,6 +15,8 @@ following functionality:
 - Convenience function for explicit handling of errors that helps to return error response in standard error format and
   logs throwable in API request log.
 
+We use the following standard for error response json body: https://datatracker.ietf.org/doc/html/rfc7807
+
 ## Build & Test
 
 ```sh
