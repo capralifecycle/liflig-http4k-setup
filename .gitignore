@@ -1,0 +1,24 @@
+
+.idea/*
+target
+*.iml
+/node_modules/
+/log.json
+/overrides.properties
+**/.flattened-pom.xml
+.java-version
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+venv
+
+docker-compose-scripts/volume
+
+!/.idea/ktfmt.xml
+!/.idea/externalDependencies.xml
