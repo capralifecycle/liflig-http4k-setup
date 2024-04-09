@@ -9,7 +9,6 @@ import no.liflig.logging.http4k.RequestIdMdcFilter
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Request
-import org.http4k.core.RequestContexts
 import org.http4k.core.then
 import org.http4k.filter.CorsPolicy
 import org.http4k.filter.ServerFilters
@@ -52,10 +51,7 @@ class LifligBasicApiSetup(
    * the [CatchLensFailure]-filter set below in core filters. The latter is in place for
    * non-contract-APIs.
    */
-  fun config(
-      contexts: RequestContexts,
-      principalLog: (Request) -> LifligUserPrincipalLog?
-  ): LifligBasicApiSetupConfig {
+  fun config(principalLog: (Request) -> LifligUserPrincipalLog?): LifligBasicApiSetupConfig {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val errorLogLens = RequestContextKey.optional<ErrorLog>(contexts)
     val normalizedStatusLens = RequestContextKey.optional<NormalizedStatus>(contexts)
@@ -66,8 +62,6 @@ class LifligBasicApiSetup(
             normalizedStatusLens = normalizedStatusLens,
             delegate = LifligJsonErrorResponseRenderer,
         )
-
-    val toLoggedErrorResponse = toLoggedErrorResponseFunction()(errorLogLens)
 
     val coreFilters =
         ServerFilters.InitialiseRequestContext(contexts)
@@ -91,12 +85,11 @@ class LifligBasicApiSetup(
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(CatchLensFailure(errorResponseRenderer::badRequest))
 
-    return LifligBasicApiSetupConfig(coreFilters, errorResponseRenderer, toLoggedErrorResponse)
+    return LifligBasicApiSetupConfig(coreFilters, errorResponseRenderer)
   }
 }
 
 data class LifligBasicApiSetupConfig(
     val coreFilters: Filter,
-    val errorResponseRenderer: LifligErrorResponseRenderer,
-    val toLoggedErrorResponse: ToLoggedErrorResponseFunction
+    val errorResponseRenderer: LifligErrorResponseRenderer
 )
