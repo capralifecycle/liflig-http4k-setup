@@ -39,7 +39,7 @@ import org.http4k.lens.RequestContextKey
  *
  * TODO: Add last resort catch all throwables?
  * TODO: Remove "principalLogSerializer" requirement. Make optional.
- * TODO: Remove normalizedStatusLens setup?
+ * TODO: Is normalizedStatusLens necessary?
  * TODO: Should OpenTelemetry be in this lib?
  */
 class LifligBasicApiSetup(
