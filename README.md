@@ -18,6 +18,8 @@ following functionality:
 
 We use the following standard for error response json body: https://datatracker.ietf.org/doc/html/rfc7807
 
+TODO: Usage example
+
 ## Build & Test
 
 ```sh
