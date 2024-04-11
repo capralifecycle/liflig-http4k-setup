@@ -1,8 +1,7 @@
-package no.liflig.http4k.setup
+package no.liflig.http4k.setup.errorhandling
 
 import mu.KLogging
-import no.liflig.logging.ErrorLog
-import no.liflig.logging.http4k.LoggingFilter
+import no.liflig.http4k.setup.logging.LoggingFilter
 import org.http4k.core.Filter
 import org.http4k.core.Request
 import org.http4k.core.Response
@@ -36,7 +35,9 @@ object CatchAllThrowablesFilter : KLogging() {
                         title = "Internal server error",
                         detail = null,
                         status = Status.INTERNAL_SERVER_ERROR.code,
-                        instance = request.uri.path))
+                        instance = request.uri.path,
+                    ),
+            )
       }
     }
   }

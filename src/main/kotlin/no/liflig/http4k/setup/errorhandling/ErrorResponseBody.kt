@@ -1,4 +1,4 @@
-package no.liflig.http4k.setup
+package no.liflig.http4k.setup.errorhandling
 
 import kotlinx.serialization.Serializable
 import org.http4k.core.Body

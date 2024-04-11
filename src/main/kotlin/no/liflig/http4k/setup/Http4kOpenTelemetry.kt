@@ -12,6 +12,8 @@ import org.http4k.filter.OpenTelemetryMetrics
 import org.http4k.filter.OpenTelemetryTracing
 import org.http4k.filter.ServerFilters
 
+// TODO: Should be removed from library?
+
 /**
  * Adds OpenTelemetry metrics, request counter and call tracing.
  *
@@ -54,4 +56,5 @@ fun lifligOpenTelemetryTracing(): Filter =
           if (res.status.code >= 400) {
             span.setStatus(StatusCode.ERROR)
           }
-        })
+        },
+    )

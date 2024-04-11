@@ -22,6 +22,7 @@
 
         <!-- TODO: Needed? -->
         <kotlin-logging-jvm.version>3.0.5</kotlin-logging-jvm.version>
+        <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
         <!-- TODO: Needed? -->
         <kotlinx.serialization.version>1.6.3</kotlinx.serialization.version>
 
@@ -32,8 +33,6 @@
         <!-- TODO: Needed? -->
         <jackson.version>2.17.0</jackson.version>
 
-        <!-- TODO: Remove. Duplicate content if needed. -->
-        <liflig-logging-http4k.version>1.20240319.014131</liflig-logging-http4k.version>
     </properties>
 
     <scm>
@@ -86,6 +85,11 @@
             <version>${kotlin-logging-jvm.version}</version>
         </dependency>
       <dependency>
+        <groupId>net.logstash.logback</groupId>
+        <artifactId>logstash-logback-encoder</artifactId>
+        <version>${logstash-logback-encoder.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.jetbrains.kotlinx</groupId>
         <artifactId>kotlinx-serialization-json</artifactId>
         <version>${kotlinx.serialization.version}</version>
@@ -94,6 +98,10 @@
         <dependency>
             <groupId>org.http4k</groupId>
             <artifactId>http4k-core</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.http4k</groupId>
+          <artifactId>http4k-contract</artifactId>
         </dependency>
         <dependency>
             <groupId>org.http4k</groupId>
@@ -106,11 +114,6 @@
         <dependency>
             <groupId>org.http4k</groupId>
             <artifactId>http4k-opentelemetry</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>no.liflig</groupId>
-            <artifactId>liflig-logging-http4k</artifactId>
-            <version>${liflig-logging-http4k.version}</version>
         </dependency>
     </dependencies>
 

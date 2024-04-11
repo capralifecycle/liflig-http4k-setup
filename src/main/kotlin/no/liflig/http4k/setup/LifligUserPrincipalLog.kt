@@ -1,7 +1,7 @@
 package no.liflig.http4k.setup
 
 import kotlinx.serialization.Serializable
-import no.liflig.logging.PrincipalLog
+import no.liflig.http4k.setup.logging.PrincipalLog
 
 /**
  * Defines what user info should be in API request log.

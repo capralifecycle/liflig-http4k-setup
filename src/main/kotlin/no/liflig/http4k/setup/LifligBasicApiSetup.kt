@@ -1,11 +1,15 @@
 package no.liflig.http4k.setup
 
 import java.util.UUID
-import no.liflig.logging.ErrorLog
-import no.liflig.logging.NormalizedStatus
-import no.liflig.logging.RequestResponseLog
-import no.liflig.logging.http4k.LoggingFilter
-import no.liflig.logging.http4k.RequestIdMdcFilter
+import no.liflig.http4k.setup.errorhandling.CatchAllThrowablesFilter
+import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
+import no.liflig.http4k.setup.errorhandling.ErrorLog
+import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
+import no.liflig.http4k.setup.filters.RequestIdMdcFilter
+import no.liflig.http4k.setup.logging.LoggingFilter
+import no.liflig.http4k.setup.logging.RequestResponseLog
+import no.liflig.http4k.setup.normalization.NormalizedStatus
+import org.http4k.contract.ErrorResponseRenderer
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Request
@@ -32,11 +36,11 @@ import org.http4k.lens.RequestContextKey
  * Note! Ordering of filters are important. Do not mess with them unless you know what you are
  * doing.
  *
- * TODO: Remove liflig.logging.http4k dependency
  * TODO: Add last resort catch all throwables?
  * TODO: Remove "principalLogSerializer" requirement. Make optional.
  * TODO: Remove normalizedStatusLens setup?
  * TODO: Rename logRequestBody -> logBody (both req + res)
+ * TODO: Should OpenTelemetry be in this lib?
  */
 class LifligBasicApiSetup(
     private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
@@ -51,16 +55,23 @@ class LifligBasicApiSetup(
    * the [CatchLensFailure]-filter set below in core filters. The latter is in place for
    * non-contract-APIs.
    */
-  fun config(principalLog: (Request) -> LifligUserPrincipalLog?): LifligBasicApiSetupConfig {
+  fun config(
+      principalLog: (Request) -> LifligUserPrincipalLog?,
+      /**
+       * Allows custom error response body for lens failure in contract if provided. Defaults to
+       * Liflig standard.
+       */
+      errorResponseBodyRenderer: ErrorResponseRenderer = StandardErrorResponseBodyRenderer
+  ): LifligBasicApiSetupConfig {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val errorLogLens = RequestContextKey.optional<ErrorLog>(contexts)
     val normalizedStatusLens = RequestContextKey.optional<NormalizedStatus>(contexts)
 
     val errorResponseRenderer =
-        LifligErrorResponseRenderer(
+        ContractLensErrorResponseRenderer(
             errorLogLens = errorLogLens,
             normalizedStatusLens = normalizedStatusLens,
-            delegate = LifligJsonErrorResponseRenderer,
+            delegate = errorResponseBodyRenderer,
         )
 
     val coreFilters =
@@ -91,5 +102,5 @@ class LifligBasicApiSetup(
 
 data class LifligBasicApiSetupConfig(
     val coreFilters: Filter,
-    val errorResponseRenderer: LifligErrorResponseRenderer
+    val errorResponseRenderer: ContractLensErrorResponseRenderer
 )

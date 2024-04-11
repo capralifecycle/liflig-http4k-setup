@@ -1,4 +1,4 @@
-package no.liflig.http4k.setup
+package no.liflig.http4k.setup.errorhandling
 
 import org.http4k.contract.ErrorResponseRenderer
 import org.http4k.core.ContentType
@@ -11,9 +11,9 @@ import org.http4k.lens.LensFailure
 
 /**
  * Responsible for converting lens failure to bad request response and providing body in
- * standardized json-format.
+ * standardized Liflig json-format. See [ErrorResponseBody].
  */
-object LifligJsonErrorResponseRenderer : ErrorResponseRenderer {
+object StandardErrorResponseBodyRenderer : ErrorResponseRenderer {
   override fun badRequest(lensFailure: LensFailure): Response {
     val target = lensFailure.target
     check(target is Request)
