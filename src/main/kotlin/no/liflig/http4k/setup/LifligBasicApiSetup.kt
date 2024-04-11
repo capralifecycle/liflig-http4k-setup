@@ -46,7 +46,7 @@ import org.http4k.lens.RequestContextKey
 class LifligBasicApiSetup(
     private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
     private val corsPolicy: CorsPolicy?,
-    private val logRequestBody: Boolean
+    private val logHttpBody: Boolean
 ) {
 
   /**
@@ -85,7 +85,7 @@ class LifligBasicApiSetup(
                     normalizedStatusLens = normalizedStatusLens,
                     requestIdChainLens = requestIdChainLens,
                     logHandler = logHandler,
-                    includeBody = logRequestBody,
+                    includeBody = logHttpBody,
                     // Tomra Connect uses Content-Type: text/plain in their tcreservation calls,
                     // so we add that here to log those request bodies
                     contentTypesToLog =
