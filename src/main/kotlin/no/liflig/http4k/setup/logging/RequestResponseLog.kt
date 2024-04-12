@@ -11,9 +11,9 @@ import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import no.liflig.http4k.setup.json.InstantSerializer
 import no.liflig.http4k.setup.json.ThrowableSerializer
-import no.liflig.http4k.setup.json.UUIDSerializer
+import no.liflig.http4k.setup.logging.json.InstantSerializer
+import no.liflig.http4k.setup.logging.json.UUIDSerializer
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.http4k.setup.normalization.NormalizedStatusSerializer
 

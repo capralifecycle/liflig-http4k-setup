@@ -7,6 +7,8 @@ import org.http4k.format.KotlinxSerialization.auto
 /**
  * Standard error response body used for internal APIs for Liflig projects. Uses the RFC 7807
  * standard : https://datatracker.ietf.org/doc/html/rfc7807
+ *
+ * TODO: Should be revised at some point.
  */
 @Serializable
 data class ErrorResponseBody(

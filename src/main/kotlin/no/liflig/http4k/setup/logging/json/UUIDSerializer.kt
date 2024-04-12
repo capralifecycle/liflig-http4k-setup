@@ -1,4 +1,4 @@
-package no.liflig.http4k.setup.json
+package no.liflig.http4k.setup.logging.json
 
 import java.util.UUID
 import kotlinx.serialization.KSerializer

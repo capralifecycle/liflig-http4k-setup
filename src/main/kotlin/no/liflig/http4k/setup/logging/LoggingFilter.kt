@@ -27,9 +27,7 @@ object LoggingFilter {
   private val logger = LoggerFactory.getLogger(LoggingFilter.javaClass)
 
   init {
-    if (logger is NOPLogger) {
-      throw RuntimeException("Logging is not configured!")
-    }
+    if (logger is NOPLogger) throw RuntimeException("Logging is not configured!")
   }
 
   /**

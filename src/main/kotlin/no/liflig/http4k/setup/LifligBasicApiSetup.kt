@@ -42,10 +42,10 @@ import org.http4k.lens.RequestContextKey
  * TODO: Should OpenTelemetry be in this lib?
  */
 class LifligBasicApiSetup(
-  private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
-  private val logHttpBody: Boolean = false,
-  private val contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
-  private val corsPolicy: CorsPolicy? = null,
+    private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
+    private val logHttpBody: Boolean = false,
+    private val contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
+    private val corsPolicy: CorsPolicy? = null,
 ) {
 
   /**
