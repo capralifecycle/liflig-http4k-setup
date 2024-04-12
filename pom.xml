@@ -21,18 +21,12 @@
     <major-version>1</major-version>
     <revision>${major-version}.local-SNAPSHOT</revision>
 
-    <!-- TODO: Needed? -->
     <kotlin-logging-jvm.version>3.0.5</kotlin-logging-jvm.version>
     <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
-    <!-- TODO: Needed? -->
-    <kotlinx.serialization.version>1.6.3</kotlinx.serialization.version>
-
     <http4k.version>5.14.4.0</http4k.version>
 
-    <!-- TODO: Needed? -->
+    <!-- TODO: Dependency needed? -->
     <slf4j-api.version>2.0.12</slf4j-api.version>
-    <!-- TODO: Needed? -->
-    <jackson.version>2.17.0</jackson.version>
 
   </properties>
 
@@ -71,11 +65,6 @@
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j-api.version}</version>
       </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -90,11 +79,6 @@
       <artifactId>logstash-logback-encoder</artifactId>
       <version>${logstash-logback-encoder.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.jetbrains.kotlinx</groupId>
-      <artifactId>kotlinx-serialization-json</artifactId>
-      <version>${kotlinx.serialization.version}</version>
-    </dependency>
 
     <dependency>
       <groupId>org.http4k</groupId>
@@ -107,10 +91,6 @@
     <dependency>
       <groupId>org.http4k</groupId>
       <artifactId>http4k-format-kotlinx-serialization</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.http4k</groupId>
-      <artifactId>http4k-format-jackson</artifactId>
     </dependency>
     <dependency>
       <groupId>org.http4k</groupId>
