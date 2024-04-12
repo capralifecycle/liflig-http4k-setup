@@ -39,13 +39,13 @@ import org.http4k.lens.RequestContextKey
  *
  * TODO: Add last resort catch all throwables?
  * TODO: Remove "principalLogSerializer" requirement. Make optional.
- * TODO: Is normalizedStatusLens necessary?
  * TODO: Should OpenTelemetry be in this lib?
  */
 class LifligBasicApiSetup(
-    private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
-    private val corsPolicy: CorsPolicy?,
-    private val logHttpBody: Boolean
+  private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
+  private val logHttpBody: Boolean = false,
+  private val contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
+  private val corsPolicy: CorsPolicy? = null,
 ) {
 
   /**
@@ -85,10 +85,7 @@ class LifligBasicApiSetup(
                     requestIdChainLens = requestIdChainLens,
                     logHandler = logHandler,
                     includeBody = logHttpBody,
-                    // Tomra Connect uses Content-Type: text/plain in their tcreservation calls,
-                    // so we add that here to log those request bodies
-                    contentTypesToLog =
-                        listOf(ContentType.APPLICATION_JSON, ContentType.TEXT_PLAIN),
+                    contentTypesToLog = contentTypesToLog,
                 ),
             )
             .then(CatchAllThrowablesFilter(errorLogLens))
