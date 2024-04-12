@@ -175,13 +175,6 @@ object LoggingFilter {
     val request = entry.request
     val response = entry.response
 
-    val logMarker: Marker by lazy {
-      Markers.appendRaw(
-          "requestInfo",
-          json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
-      )
-    }
-
     when {
       suppressSuccessfulHealthChecks &&
           request.uri == "/health" &&
@@ -190,6 +183,12 @@ object LoggingFilter {
         // NoOp
       }
       entry.throwable != null -> {
+        val logMarker: Marker =
+            Markers.appendRaw(
+                "requestInfo",
+                json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
+            )
+
         val level = if (entry.response.statusCode == 500) Level.ERROR else Level.WARN
         logger
             .atLevel(level)
@@ -200,11 +199,17 @@ object LoggingFilter {
             )
         if (printStacktraceToConsole) entry.throwable.printStackTrace()
       }
-      else ->
-          logger.info(
-              logMarker,
-              "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
-          )
+      else -> {
+        val logMarker: Marker =
+            Markers.appendRaw(
+                "requestInfo",
+                json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
+            )
+        logger.info(
+            logMarker,
+            "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
+        )
+      }
     }
   }
 }
