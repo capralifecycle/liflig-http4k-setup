@@ -97,7 +97,7 @@ object LoggingFilter {
       contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
       /**
        * Header names to black-list from logging. Their values are replaced with `*REDACTED*` in
-       * both request and reponse.
+       * both request and response.
        */
       redactedHeaders: List<String> = listOf("authorization", "x-api-key"),
   ) = Filter { next ->
@@ -173,47 +173,40 @@ object LoggingFilter {
       principalLogSerializer: KSerializer<T>,
       /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
       suppressSuccessfulHealthChecks: Boolean = true,
-  ): (RequestResponseLog<T>) -> Unit {
-    return handler@{ entry ->
-      val request = entry.request
-      val response = entry.response
+  ): (RequestResponseLog<T>) -> Unit = { entry ->
+    val request = entry.request
+    val response = entry.response
 
-      if (suppressSuccessfulHealthChecks &&
+    val logMarker: Marker by lazy {
+      Markers.appendRaw(
+          "requestInfo",
+          json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
+      )
+    }
+
+    when {
+      suppressSuccessfulHealthChecks &&
           request.uri == "/health" &&
           response.statusCode == 200 &&
-          entry.throwable == null) {
-        return@handler
+          entry.throwable == null -> {
+        // NoOp
       }
-
-      val logMarker: Marker =
-          Markers.appendRaw(
-              "requestInfo",
-              json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
-          )
-
-      if (entry.throwable != null) {
-        val level =
-            when (entry.response.statusCode) {
-              500 -> Level.ERROR
-              else -> Level.WARN
-            }
+      entry.throwable != null -> {
+        val level = if (entry.response.statusCode == 500) Level.ERROR else Level.WARN
         logger
             .atLevel(level)
             .addMarker(logMarker)
             .setCause(entry.throwable)
             .log(
-                "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}")
-
-        if (printStacktraceToConsole) {
-          entry.throwable.printStackTrace()
-        }
-        return@handler
+                "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
+            )
+        if (printStacktraceToConsole) entry.throwable.printStackTrace()
       }
-
-      logger.info(
-          logMarker,
-          "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
-      )
+      else ->
+          logger.info(
+              logMarker,
+              "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
+          )
     }
   }
 }
