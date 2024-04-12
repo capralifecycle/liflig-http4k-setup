@@ -1,9 +1,10 @@
 package no.liflig.http4k.setup
 
 import java.util.UUID
-import no.liflig.http4k.setup.errorhandling.CatchAllThrowablesFilter
+import no.liflig.http4k.setup.errorhandling.CatchUnhandledThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
 import no.liflig.http4k.setup.errorhandling.ErrorLog
+import no.liflig.http4k.setup.errorhandling.LastResortCatchAllThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
@@ -37,7 +38,6 @@ import org.http4k.lens.RequestContextKey
  * Note! Ordering of filters are important. Do not mess with them unless you know what you are
  * doing.
  *
- * TODO: Add last resort catch all throwables?
  * TODO: Remove "principalLogSerializer" requirement. Make optional.
  * TODO: Should OpenTelemetry be in this lib?
  */
@@ -76,6 +76,7 @@ class LifligBasicApiSetup(
 
     val coreFilters =
         ServerFilters.InitialiseRequestContext(contexts)
+            .then(LastResortCatchAllThrowablesFilter())
             .then(RequestIdMdcFilter(requestIdChainLens))
             .then(
                 LoggingFilter(
@@ -88,7 +89,7 @@ class LifligBasicApiSetup(
                     contentTypesToLog = contentTypesToLog,
                 ),
             )
-            .then(CatchAllThrowablesFilter(errorLogLens))
+            .then(CatchUnhandledThrowablesFilter(errorLogLens))
             .then(http4kOpenTelemetryFilters())
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(CatchLensFailure(errorResponseRenderer::badRequest))

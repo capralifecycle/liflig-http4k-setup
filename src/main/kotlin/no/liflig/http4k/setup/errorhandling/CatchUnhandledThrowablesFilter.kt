@@ -14,13 +14,16 @@ import org.http4k.lens.BiDiLens
  * [LoggingFilter] can pick it up and put it in the API request log. Then it responds with an 500
  * status code and standardized error body.
  *
- * This filter is a last resort and should generally only be triggered if an error has not been
- * handled properly on a higher level. It is important to catch the throwables and not let it pass
- * to Jetty as it will potentially be displayed for the client with a Jetty-specific response.
+ * This filter is a pics up errors has not been handled properly on a higher level e.g. in endpoint
+ * logic.
  *
- * Note! Must be placed after [LoggingFilter] in filter chain.
+ * It is important to catch the throwables and not let it pass to Jetty as it will potentially be
+ * displayed for the client with a Jetty-specific response.
+ *
+ * Note! Must be placed after [LoggingFilter] in filter chain in order to properly attach throwable
+ * to log.
  */
-object CatchAllThrowablesFilter : KLogging() {
+object CatchUnhandledThrowablesFilter : KLogging() {
   operator fun invoke(errorLogLens: BiDiLens<Request, ErrorLog?>) = Filter { next ->
     { request ->
       try {
