@@ -1,6 +1,6 @@
 @file:UseSerializers(ThrowableSerializer::class, StackTraceElementSerializer::class)
 
-package no.liflig.http4k.setup.json
+package no.liflig.http4k.setup.logging.json
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -9,6 +9,13 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
+/**
+ * TODO: Suppressed field is causing the following exception when initializing
+ *   Serialized.serializer(). Ignoring for now.
+ *
+ * java.lang.NullPointerException: Parameter specified as non-null is null: method
+ * kotlinx.serialization.internal.ArrayClassDesc.<init>, parameter elementDesc
+ */
 object ThrowableSerializer : KSerializer<Throwable> {
   override val descriptor: SerialDescriptor = Serialized.serializer().descriptor
 
@@ -19,7 +26,7 @@ object ThrowableSerializer : KSerializer<Throwable> {
               Serialized(
                   value.toString(),
                   value.stackTrace,
-                  value.suppressed,
+                  //                  value.suppressed,
                   value.cause,
               ),
           )
@@ -31,7 +38,7 @@ object ThrowableSerializer : KSerializer<Throwable> {
   private class Serialized(
       val value: String,
       val stackTrace: Array<StackTraceElement>?,
-      val suppressed: Array<Throwable>?,
+      //      val suppressed: Array<Throwable>?,
       val cause: Throwable?,
   )
 }
