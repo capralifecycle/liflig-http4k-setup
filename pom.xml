@@ -23,11 +23,15 @@
 
     <kotlin-logging-jvm.version>3.0.5</kotlin-logging-jvm.version>
     <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
+    <kotlinx-serialization.version>1.6.2</kotlinx-serialization.version>
+    <slf4j-api.version>2.0.12</slf4j-api.version>
     <http4k.version>5.14.4.0</http4k.version>
 
-    <!-- TODO: Dependency needed? -->
-    <slf4j-api.version>2.0.12</slf4j-api.version>
-
+    <!-- Testing-->
+    <junit-bom.version>5.10.2</junit-bom.version>
+    <logback-classic.version>1.5.3</logback-classic.version>
+    <!-- TODO: Replace with assert4j? -->
+    <kotest-assertions-core-jvm.version>5.8.1</kotest-assertions-core-jvm.version>
   </properties>
 
   <scm>
@@ -65,6 +69,13 @@
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j-api.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${junit-bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -78,6 +89,15 @@
       <groupId>net.logstash.logback</groupId>
       <artifactId>logstash-logback-encoder</artifactId>
       <version>${logstash-logback-encoder.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.kotlinx</groupId>
+      <artifactId>kotlinx-serialization-json</artifactId>
+      <version>${kotlinx-serialization.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <dependency>
@@ -96,6 +116,30 @@
       <groupId>org.http4k</groupId>
       <artifactId>http4k-opentelemetry</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-test-junit5</artifactId>
+      <version>${kotlin.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback-classic.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.kotest</groupId>
+      <artifactId>kotest-assertions-core-jvm</artifactId>
+      <version>${kotest-assertions-core-jvm.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>

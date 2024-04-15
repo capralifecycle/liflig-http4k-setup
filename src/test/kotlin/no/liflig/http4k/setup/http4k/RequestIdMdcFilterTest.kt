@@ -13,7 +13,7 @@ import org.http4k.core.Status
 import org.http4k.core.then
 import org.http4k.filter.ServerFilters
 import org.http4k.lens.RequestContextKey
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class RequestIdMdcFilterTest {
 
