@@ -6,6 +6,7 @@ import java.util.UUID
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import net.logstash.logback.marker.Markers
+import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.errorhandling.ErrorLog
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
@@ -158,6 +159,37 @@ object LoggingFilter {
    *
    * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder, since
    * it uses special markers that it will parse.
+   *
+   * Uses default [LifligUserPrincipalLog] serializer. Either because you actually want to use this
+   * principalLog class for logging or because you do not have a concept principal and do not want
+   * clutter code with unused things.
+   */
+  fun createLogHandler(
+      /**
+       * Errors are always logged, but if this is true, the raw stack trace is dumped directly to
+       * the console. This is typically used locally to easy debugging during development.
+       *
+       * Set to false in production and when using "Structured Logging" (json logs etc), because the
+       * stacktrace will break parsing.
+       */
+      printStacktraceToConsole: Boolean,
+      /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
+      suppressSuccessfulHealthChecks: Boolean = true,
+  ): (RequestResponseLog<LifligUserPrincipalLog>) -> Unit = { entry ->
+    logEntry(
+        entry,
+        LifligUserPrincipalLog.serializer(),
+        suppressSuccessfulHealthChecks,
+        printStacktraceToConsole)
+  }
+
+  /**
+   * Log handler that will log information from the request using `INFO` level under the requestInfo
+   * property. Errors are logged with `WARN` level, except `500` responses, which are logged at
+   * `ERROR` level.
+   *
+   * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder, since
+   * it uses special markers that it will parse.
    */
   fun <T : PrincipalLog> createLogHandler(
       /**
@@ -168,10 +200,24 @@ object LoggingFilter {
        * stacktrace will break parsing.
        */
       printStacktraceToConsole: Boolean,
+      /**
+       * Serializer for custom principal data class when you do not want to use Liflig default
+       * [LifligUserPrincipalLog].
+       */
       principalLogSerializer: KSerializer<T>,
       /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
       suppressSuccessfulHealthChecks: Boolean = true,
   ): (RequestResponseLog<T>) -> Unit = { entry ->
+    logEntry(
+        entry, principalLogSerializer, suppressSuccessfulHealthChecks, printStacktraceToConsole)
+  }
+
+  private fun <T : PrincipalLog> logEntry(
+      entry: RequestResponseLog<T>,
+      principalLogSerializer: KSerializer<T>,
+      suppressSuccessfulHealthChecks: Boolean,
+      printStacktraceToConsole: Boolean,
+  ) {
     val request = entry.request
     val response = entry.response
 
