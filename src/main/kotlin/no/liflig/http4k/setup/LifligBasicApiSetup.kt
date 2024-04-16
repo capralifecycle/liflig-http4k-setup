@@ -37,9 +37,6 @@ import org.http4k.lens.RequestContextKey
  *
  * Note! Ordering of filters are important. Do not mess with them unless you know what you are
  * doing.
- *
- * TODO: Remove "principalLogSerializer" requirement. Make optional.
- * TODO: Should OpenTelemetry be in this lib?
  */
 class LifligBasicApiSetup(
     private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
@@ -90,7 +87,6 @@ class LifligBasicApiSetup(
                 ),
             )
             .then(CatchUnhandledThrowablesFilter(errorLogLens))
-            .then(http4kOpenTelemetryFilters())
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(CatchLensFailure(errorResponseRenderer::badRequest))
 
