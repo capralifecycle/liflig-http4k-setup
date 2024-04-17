@@ -52,7 +52,7 @@ class LifligBasicApiSetup(
    * the [CatchLensFailure]-filter set below in core filters. The latter is in place for
    * non-contract-APIs.
    */
-  fun config(
+  fun create(
       principalLog: (Request) -> LifligUserPrincipalLog?,
       /**
        * Allows custom error response body for lens failure in contract if provided. Defaults to
