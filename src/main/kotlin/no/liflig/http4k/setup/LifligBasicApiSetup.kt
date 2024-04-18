@@ -7,6 +7,7 @@ import no.liflig.http4k.setup.errorhandling.ErrorLog
 import no.liflig.http4k.setup.errorhandling.LastResortCatchAllThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
+import no.liflig.http4k.setup.filters.http4kOpenTelemetryFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.normalization.NormalizedStatus
@@ -28,7 +29,7 @@ import org.http4k.lens.RequestContextKey
  *   headers, exception stacktrace etc.
  * - Sets up default filters in a specific order so that log is enriched properly with data.
  * - Catching unhandled exceptions and respond in standard json-format.
- * - OpenTelemetry setup for recording exceptions.
+ * - OpenTelemetry setup for recording exceptions and response status codes.
  * - Sets Cors policy for API.
  * - Standard way of handling validation errors by lens failure in contract APIs (E.g. invalid
  *   request param) and respond in standard json-format.
@@ -85,6 +86,7 @@ class LifligBasicApiSetup(
             )
             .then(CatchUnhandledThrowablesFilter(errorLogLens))
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
+            .then(ServerFilters.http4kOpenTelemetryFilter())
             .then(CatchLensFailure(errorResponseRenderer::badRequest))
 
     return LifligBasicApiSetupConfig(coreFilters, errorResponseRenderer)

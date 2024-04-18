@@ -10,6 +10,7 @@ following functionality:
   headers, exception stacktrace etc.
 - Sets up default filters in a specific order so that log is enriched properly with data.
 - Catching unhandled exceptions and respond in standard json-format.
+- OpenTelemetry setup for recording exceptions and response status codes.
 - Sets Cors policy for API if needed.
 - Standard way of handling validation errors by lens failure in contract APIs (E.g. invalid request param) and
   respond in standard json-format.
