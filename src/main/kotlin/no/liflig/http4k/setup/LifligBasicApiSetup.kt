@@ -43,22 +43,16 @@ class LifligBasicApiSetup(
     private val logHttpBody: Boolean = false,
     private val contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
     private val corsPolicy: CorsPolicy? = null,
+    /**
+     * Allows custom error response body for lens failure in contract if provided. Defaults to
+     * Liflig standard.
+     */
+    private val errorResponseBodyRenderer: ErrorResponseRenderer = StandardErrorResponseBodyRenderer
 ) {
 
-  /**
-   * Note that contract APIs need to specifically set errorResponseRenderer in order to map lens
-   * failures to desirable response, therefore it is returned here and can be utilized during API
-   * setup. This is because Contract APIs adds [CatchLensFailure]-filter per router which overrides
-   * the [CatchLensFailure]-filter set below in core filters. The latter is in place for
-   * non-contract-APIs.
-   */
   fun create(
-      principalLog: (Request) -> LifligUserPrincipalLog?,
-      /**
-       * Allows custom error response body for lens failure in contract if provided. Defaults to
-       * Liflig standard.
-       */
-      errorResponseBodyRenderer: ErrorResponseRenderer = StandardErrorResponseBodyRenderer
+      /** This param could be set in constructor, but is set here in order to */
+      principalLog: (Request) -> LifligUserPrincipalLog?
   ): LifligBasicApiSetupConfig {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val errorLogLens = RequestContextKey.optional<ErrorLog>(contexts)
@@ -96,5 +90,12 @@ class LifligBasicApiSetup(
 
 data class LifligBasicApiSetupConfig(
     val coreFilters: Filter,
+    /**
+     * Note that contract APIs need to specifically set errorResponseRenderer in order to map lens
+     * failures to desirable response, therefore it is returned here and can be utilized during API
+     * setup in consumer app. This is because Contract APIs adds [CatchLensFailure]-filter per
+     * router which overrides the [CatchLensFailure]-filter set below in core filters. The latter is
+     * in place for non-contract-APIs.
+     */
     val errorResponseRenderer: ContractLensErrorResponseRenderer
 )
