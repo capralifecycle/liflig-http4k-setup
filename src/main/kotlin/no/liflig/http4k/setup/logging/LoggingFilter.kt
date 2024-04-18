@@ -165,22 +165,10 @@ object LoggingFilter {
    * clutter code with unused things.
    */
   fun createLogHandler(
-      /**
-       * Errors are always logged, but if this is true, the raw stack trace is dumped directly to
-       * the console. This is typically used locally to easy debugging during development.
-       *
-       * Set to false in production and when using "Structured Logging" (json logs etc), because the
-       * stacktrace will break parsing.
-       */
-      printStacktraceToConsole: Boolean,
       /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
       suppressSuccessfulHealthChecks: Boolean = true,
   ): (RequestResponseLog<LifligUserPrincipalLog>) -> Unit = { entry ->
-    logEntry(
-        entry,
-        LifligUserPrincipalLog.serializer(),
-        suppressSuccessfulHealthChecks,
-        printStacktraceToConsole)
+    logEntry(entry, LifligUserPrincipalLog.serializer(), suppressSuccessfulHealthChecks)
   }
 
   /**
@@ -193,14 +181,6 @@ object LoggingFilter {
    */
   fun <T : PrincipalLog> createLogHandler(
       /**
-       * Errors are always logged, but if this is true, the raw stack trace is dumped directly to
-       * the console. This is typically used locally to easy debugging during development.
-       *
-       * Set to false in production and when using "Structured Logging" (json logs etc), because the
-       * stacktrace will break parsing.
-       */
-      printStacktraceToConsole: Boolean,
-      /**
        * Serializer for custom principal data class when you do not want to use Liflig default
        * [LifligUserPrincipalLog].
        */
@@ -208,15 +188,13 @@ object LoggingFilter {
       /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
       suppressSuccessfulHealthChecks: Boolean = true,
   ): (RequestResponseLog<T>) -> Unit = { entry ->
-    logEntry(
-        entry, principalLogSerializer, suppressSuccessfulHealthChecks, printStacktraceToConsole)
+    logEntry(entry, principalLogSerializer, suppressSuccessfulHealthChecks)
   }
 
   private fun <T : PrincipalLog> logEntry(
       entry: RequestResponseLog<T>,
       principalLogSerializer: KSerializer<T>,
       suppressSuccessfulHealthChecks: Boolean,
-      printStacktraceToConsole: Boolean,
   ) {
     val request = entry.request
     val response = entry.response
@@ -244,7 +222,6 @@ object LoggingFilter {
             .log(
                 "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
             )
-        if (printStacktraceToConsole) entry.throwable.printStackTrace()
       }
       else ->
           logger.info(

@@ -151,7 +151,7 @@ class LoggingFilterTest {
   @Test
   @Disabled("Until fixed")
   fun `log handler properly logs as json in combination with logback setup`() {
-    val handler = LoggingFilter.createLogHandler(false, CustomPrincipalLog.serializer())
+    val handler = LoggingFilter.createLogHandler(CustomPrincipalLog.serializer())
 
     val result = captureStdout { handler(exampleLog) }
 
@@ -172,7 +172,7 @@ class LoggingFilterTest {
   @Test
   @Disabled("Until fixed")
   fun `log handler uses expected logger`() {
-    val handler = LoggingFilter.createLogHandler(false, CustomPrincipalLog.serializer())
+    val handler = LoggingFilter.createLogHandler(CustomPrincipalLog.serializer())
 
     val result = captureStdout { handler(exampleLog) }
 
