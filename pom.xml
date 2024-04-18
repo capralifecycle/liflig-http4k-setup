@@ -25,11 +25,11 @@
     <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
     <kotlinx-serialization.version>1.6.3</kotlinx-serialization.version>
     <slf4j-api.version>2.0.13</slf4j-api.version>
-    <http4k.version>5.15.0.0</http4k.version>
+    <http4k.version>5.16.0.0</http4k.version>
 
     <!-- Testing-->
     <junit-bom.version>5.10.2</junit-bom.version>
-    <logback-classic.version>1.5.5</logback-classic.version>
+    <logback-classic.version>1.5.6</logback-classic.version>
     <!-- TODO: Replace with assert4j? -->
     <kotest-assertions-core-jvm.version>5.8.1</kotest-assertions-core-jvm.version>
   </properties>
