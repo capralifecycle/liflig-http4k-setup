@@ -51,7 +51,10 @@ class LifligBasicApiSetup(
 ) {
 
   fun create(
-      /** This param could be set in constructor, but is set here in order to */
+      /**
+       * This param could be set in constructor, but is set here in order to nudge developer to
+       * create function closer to its local API setup.
+       */
       principalLog: (Request) -> LifligUserPrincipalLog?
   ): LifligBasicApiSetupConfig {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
