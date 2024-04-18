@@ -41,13 +41,7 @@ mvn spotless:apply
 
 ## Usage example
 Api server setup:
-```kotlin
-// ApiServer - TODO
-
-```
+https://github.com/capralifecycle/liflig-rest-service-baseline/blob/master/src/main/kotlin/no/liflig/baseline/api/ApiServer.kt
 
 API setup:
-```kotlin
-// Api.kt - TODO
-
-```
+https://github.com/capralifecycle/liflig-rest-service-baseline/blob/master/src/main/kotlin/no/liflig/baseline/api/Api.kt
