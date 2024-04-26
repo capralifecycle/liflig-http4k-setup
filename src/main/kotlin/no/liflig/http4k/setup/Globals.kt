@@ -17,12 +17,16 @@ fun Request.attachThrowableToLog(throwable: Throwable) {
   with(errorLogLens of ErrorLog(throwable))
 }
 
-/** Convenience function that creates standardized response body. */
-fun standardErrorResponse(
+/**
+ * Returns a standardized error response following the 'Problem Details' specification.
+ *
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">Problem Details specification</a>
+ */
+fun errorResponse(
     request: Request,
     status: Status,
     title: String,
-    detail: String?
+    detail: String? = null
 ): Response =
     Response(status)
         .with(
@@ -36,16 +40,18 @@ fun standardErrorResponse(
         )
 
 /**
- * Convenience function that puts throwable in context for API request log and returns standardized
- * response body. TODO: Improve naming
+ * Returns a standardized error response following the 'Problem Details' specification, and puts the
+ * given exception in the request context for logging.
+ *
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">Problem Details specification</a>
  */
-fun toLoggedStandardErrorResponse(
+fun loggedErrorResponse(
     request: Request,
     status: Status,
     title: String,
-    detail: String?,
-    throwable: Throwable?
+    detail: String? = null,
+    exception: Throwable? = null
 ): Response {
-  throwable?.run { request.attachThrowableToLog(this) }
-  return standardErrorResponse(request, status, title, detail)
+  exception?.run { request.attachThrowableToLog(this) }
+  return errorResponse(request, status, title, detail)
 }
