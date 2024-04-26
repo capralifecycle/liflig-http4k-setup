@@ -1,6 +1,6 @@
 package no.liflig.http4k.setup
 
-import java.util.UUID
+import java.util.*
 import no.liflig.http4k.setup.errorhandling.CatchUnhandledThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
 import no.liflig.http4k.setup.errorhandling.ErrorLog
@@ -42,7 +42,14 @@ import org.http4k.lens.RequestContextKey
 class LifligBasicApiSetup(
     private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
     private val logHttpBody: Boolean = false,
-    private val contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
+    private val contentTypesToLog: List<ContentType> =
+        listOf(
+            ContentType.APPLICATION_JSON,
+            ContentType.APPLICATION_XML,
+            ContentType.APPLICATION_FORM_URLENCODED,
+            ContentType.TEXT_PLAIN,
+            ContentType.TEXT_XML,
+        ),
     private val corsPolicy: CorsPolicy? = null,
     /**
      * Allows custom error response body for lens failure in contract if provided. Defaults to
