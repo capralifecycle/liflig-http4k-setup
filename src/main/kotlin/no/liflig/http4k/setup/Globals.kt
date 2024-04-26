@@ -41,7 +41,7 @@ fun errorResponse(
 
 /**
  * Returns a standardized error response following the 'Problem Details' specification, and puts the
- * given exception in the request context for logging.
+ * given throwable in the request context for logging.
  *
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">Problem Details specification</a>
  */
@@ -50,8 +50,8 @@ fun loggedErrorResponse(
     status: Status,
     title: String,
     detail: String? = null,
-    exception: Throwable? = null
+    throwable: Throwable? = null
 ): Response {
-  exception?.run { request.attachThrowableToLog(this) }
+  throwable?.run { request.attachThrowableToLog(this) }
   return errorResponse(request, status, title, detail)
 }
