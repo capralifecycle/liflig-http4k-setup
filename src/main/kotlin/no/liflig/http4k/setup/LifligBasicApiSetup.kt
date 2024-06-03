@@ -79,6 +79,9 @@ class LifligBasicApiSetup(
     val coreFilters =
         ServerFilters.InitialiseRequestContext(contexts)
             .then(LastResortCatchAllThrowablesFilter())
+            // We want this filter to be before the rest of the filters, otherwise we won't get
+            // correct CORS headers on responses returned from e.g. CatchUnhandledThrowablesFilter
+            .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(RequestIdMdcFilter(requestIdChainLens))
             .then(
                 LoggingFilter(
@@ -92,7 +95,6 @@ class LifligBasicApiSetup(
                 ),
             )
             .then(CatchUnhandledThrowablesFilter(errorLogLens))
-            .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(ServerFilters.http4kOpenTelemetryFilter())
             .then(CatchLensFailure(errorResponseRenderer::badRequest))
 
