@@ -20,38 +20,28 @@ fun Request.attachThrowableToLog(throwable: Throwable) {
 /**
  * Returns a standardized error response following the 'Problem Details' specification.
  *
+ * If a [cause] throwable is given, attaches it to the request log.
+ *
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">Problem Details specification</a>
  */
 fun errorResponse(
     request: Request,
     status: Status,
     title: String,
-    detail: String? = null
-): Response =
-    Response(status)
-        .with(
-            ErrorResponseBody.bodyLens of
-                ErrorResponseBody(
-                    title = title,
-                    detail = detail,
-                    status = status.code,
-                    instance = request.uri.path,
-                ),
-        )
-
-/**
- * Returns a standardized error response following the 'Problem Details' specification, and puts the
- * given throwable in the request context for logging.
- *
- * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">Problem Details specification</a>
- */
-fun loggedErrorResponse(
-    request: Request,
-    status: Status,
-    title: String,
     detail: String? = null,
-    throwable: Throwable? = null
+    cause: Throwable? = null
 ): Response {
-  throwable?.run { request.attachThrowableToLog(this) }
-  return errorResponse(request, status, title, detail)
+  if (cause != null) {
+    request.attachThrowableToLog(cause)
+  }
+  return Response(status)
+      .with(
+          ErrorResponseBody.bodyLens of
+              ErrorResponseBody(
+                  title = title,
+                  detail = detail,
+                  status = status.code,
+                  instance = request.uri.path,
+              ),
+      )
 }
