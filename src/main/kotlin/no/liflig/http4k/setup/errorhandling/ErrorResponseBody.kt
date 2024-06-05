@@ -2,6 +2,9 @@ package no.liflig.http4k.setup.errorhandling
 
 import kotlinx.serialization.Serializable
 import org.http4k.core.Body
+import org.http4k.core.Response
+import org.http4k.core.Status
+import org.http4k.core.with
 import org.http4k.format.KotlinxSerialization.auto
 
 /**
@@ -26,5 +29,15 @@ data class ErrorResponseBody(
 ) {
   companion object {
     val bodyLens = Body.auto<ErrorResponseBody>().toLens()
+  }
+
+  /**
+   * Utility function to create a response from an error response body, using the [status] from the
+   * body.
+   */
+  fun toResponse(): Response {
+    // status should always be a valid HTTP status code, but we fall back to 500 just in case
+    val status = Status.fromCode(this.status) ?: Status.INTERNAL_SERVER_ERROR
+    return Response(status).with(bodyLens of this)
   }
 }
