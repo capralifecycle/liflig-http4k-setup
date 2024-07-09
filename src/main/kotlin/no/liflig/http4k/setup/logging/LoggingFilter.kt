@@ -17,6 +17,7 @@ import org.http4k.core.Filter
 import org.http4k.core.Headers
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
+import org.http4k.core.Response
 import org.http4k.lens.BiDiLens
 import org.http4k.lens.Header
 import org.http4k.lens.RequestContextLens
@@ -72,9 +73,26 @@ object LoggingFilter {
 
   // Only log specific content types.
   // Include lack of content type as it is usually due to an error.
-  private fun HttpMessage.shouldLogBody(contentTypesToLog: List<ContentType>): Boolean {
+  private fun HttpMessage.shouldLogContentType(contentTypesToLog: List<ContentType>): Boolean {
     val contentType = Header.CONTENT_TYPE(this)
     return contentType == null || contentTypesToLog.any { contentType.value == it.value }
+  }
+
+  private fun Request.shouldLogBody(contentTypesToLog: List<ContentType>): Boolean {
+    if (excludeRequestBodyFromLogLens(this)) {
+      return false
+    }
+    return this.shouldLogContentType(contentTypesToLog)
+  }
+
+  private fun Response.shouldLogBody(
+      request: Request,
+      contentTypesToLog: List<ContentType>,
+  ): Boolean {
+    if (excludeResponseBodyFromLogLens(request)) {
+      return false
+    }
+    return this.shouldLogContentType(contentTypesToLog)
   }
 
   operator fun <T : PrincipalLog> invoke(
@@ -113,18 +131,8 @@ object LoggingFilter {
       val endTimeInstant = Instant.now()
       val duration = Duration.ofNanos(System.nanoTime() - startTime)
 
-      val logRequestBody =
-          includeBody &&
-              !excludeRequestBodyFromLogLens(request) &&
-              request.shouldLogBody(
-                  contentTypesToLog,
-              )
-      val logResponseBody =
-          includeBody &&
-              !excludeResponseBodyFromLogLens(request) &&
-              response.shouldLogBody(
-                  contentTypesToLog,
-              )
+      val logRequestBody = includeBody && request.shouldLogBody(contentTypesToLog)
+      val logResponseBody = includeBody && response.shouldLogBody(request, contentTypesToLog)
 
       val requestBody = if (logRequestBody) request.bodyString() else null
       val responseBody = if (logResponseBody) response.bodyString() else null
