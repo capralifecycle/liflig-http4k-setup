@@ -2,12 +2,14 @@ package no.liflig.http4k.setup.logging
 
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import net.logstash.logback.marker.Markers
 import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.errorhandling.ErrorLog
+import no.liflig.http4k.setup.excludeRequestBodyFromLogLens
+import no.liflig.http4k.setup.excludeResponseBodyFromLogLens
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
 import org.http4k.core.ContentType
@@ -111,8 +113,18 @@ object LoggingFilter {
       val endTimeInstant = Instant.now()
       val duration = Duration.ofNanos(System.nanoTime() - startTime)
 
-      val logRequestBody = includeBody && request.shouldLogBody(contentTypesToLog)
-      val logResponseBody = includeBody && response.shouldLogBody(contentTypesToLog)
+      val logRequestBody =
+          includeBody &&
+              !excludeRequestBodyFromLogLens(request) &&
+              request.shouldLogBody(
+                  contentTypesToLog,
+              )
+      val logResponseBody =
+          includeBody &&
+              !excludeResponseBodyFromLogLens(request) &&
+              response.shouldLogBody(
+                  contentTypesToLog,
+              )
 
       val requestBody = if (logRequestBody) request.bodyString() else null
       val responseBody = if (logResponseBody) response.bodyString() else null

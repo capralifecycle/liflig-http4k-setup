@@ -8,12 +8,15 @@ import java.io.FileDescriptor
 import java.io.FileOutputStream
 import java.io.PrintStream
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import no.liflig.http4k.setup.contexts
+import no.liflig.http4k.setup.excludeRequestBodyFromLog
+import no.liflig.http4k.setup.excludeResponseBodyFromLog
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
@@ -23,7 +26,6 @@ import no.liflig.http4k.setup.logging.ResponseLog
 import no.liflig.http4k.setup.normalization.NormalizedStatusCode
 import org.http4k.core.Method
 import org.http4k.core.Request
-import org.http4k.core.RequestContexts
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.then
@@ -69,7 +71,6 @@ class LoggingFilterTest {
 
   @Test
   fun `filter gives expected log object`() {
-    val contexts = RequestContexts()
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
@@ -113,7 +114,6 @@ class LoggingFilterTest {
 
   @Test
   fun `filter will redact authorization header by default`() {
-    val contexts = RequestContexts()
     val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
 
@@ -146,6 +146,47 @@ class LoggingFilterTest {
         event.request.headers.filter { it["name"].equals("authorization", true) }
     authorizationHeaders shouldHaveSize 1
     authorizationHeaders.first()["value"] shouldBe "*REDACTED*"
+  }
+
+  @Test
+  fun `excludeResponseBodyFromLog excludes response body`() {
+    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
+    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = true,
+            principalLog = { CustomPrincipalLog },
+            errorLogLens = RequestContextKey.optional(contexts),
+            normalizedStatusLens = RequestContextKey.optional(contexts),
+            requestIdChainLens = requestIdChainLens,
+            logHandler = {
+              events.add(it)
+              Unit
+            },
+        )
+
+    val request = Request(Method.GET, "/some/url").body("request body")
+
+    val handler =
+        ServerFilters.InitialiseRequestContext(contexts)
+            .then(RequestIdMdcFilter(requestIdChainLens))
+            .then(loggingFilter)
+            .then { receivedRequest ->
+              receivedRequest.excludeRequestBodyFromLog()
+              receivedRequest.excludeResponseBodyFromLog()
+              Response(Status.OK).body("hello world")
+            }
+
+    val response = handler(request)
+
+    response.status shouldBe Status.OK
+
+    events shouldHaveSize 1
+    val event = events.first()
+
+    event.request.body shouldBe null
+    event.response.body shouldBe null
   }
 
   @Test

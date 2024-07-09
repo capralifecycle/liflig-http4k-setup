@@ -41,6 +41,10 @@ import org.http4k.lens.RequestContextKey
  */
 class LifligBasicApiSetup(
     private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
+    /**
+     * Can be overridden on a per-request basis (see [excludeRequestBodyFromLog] and
+     * [excludeResponseBodyFromLog]).
+     */
     private val logHttpBody: Boolean = false,
     private val contentTypesToLog: List<ContentType> =
         listOf(
