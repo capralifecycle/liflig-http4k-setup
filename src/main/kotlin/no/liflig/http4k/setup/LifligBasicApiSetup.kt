@@ -54,6 +54,11 @@ class LifligBasicApiSetup(
             ContentType.TEXT_PLAIN,
             ContentType.TEXT_XML,
         ),
+    /**
+     * Header names to black-list from logging. Their values are replaced with `*REDACTED*` in both
+     * request and response.
+     */
+    private val redactedHeaders: List<String> = listOf("authorization", "x-api-key"),
     private val corsPolicy: CorsPolicy? = null,
     /**
      * Allows custom error response body for lens failure in contract if provided. Defaults to
@@ -96,6 +101,7 @@ class LifligBasicApiSetup(
                     logHandler = logHandler,
                     includeBody = logHttpBody,
                     contentTypesToLog = contentTypesToLog,
+                    redactedHeaders = redactedHeaders,
                 ),
             )
             .then(CatchUnhandledThrowablesFilter(errorLogLens))
