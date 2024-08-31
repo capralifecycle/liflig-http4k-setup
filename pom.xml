@@ -25,7 +25,7 @@
     <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
     <kotlinx-serialization.version>1.7.1</kotlinx-serialization.version>
     <slf4j-api.version>2.0.16</slf4j-api.version>
-    <http4k.version>5.28.1.0</http4k.version>
+    <http4k.version>5.29.0.0</http4k.version>
 
     <!-- Testing-->
     <junit-bom.version>5.11.0</junit-bom.version>
