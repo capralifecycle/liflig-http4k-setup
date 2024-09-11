@@ -2,7 +2,7 @@ package no.liflig.http4k.setup.logging
 
 import java.time.Duration
 import java.time.Instant
-import java.util.*
+import java.util.UUID
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import net.logstash.logback.marker.Markers
@@ -15,6 +15,7 @@ import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Headers
+import org.http4k.core.HttpHandler
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
 import org.http4k.core.Response
@@ -27,32 +28,82 @@ import org.slf4j.event.Level
 import org.slf4j.helpers.NOPLogger
 
 /** Filter to handle request logging. */
-object LoggingFilter {
-  private val logger = LoggerFactory.getLogger(LoggingFilter.javaClass)
+class LoggingFilter<T : PrincipalLog>(
+    /** Extracts whe [PrincipalLog] from the [Request]. */
+    private val principalLog: (Request) -> T?,
+    /** Reads the [ErrorLog] from the [Request], if any. */
+    private val errorLogLens: BiDiLens<Request, ErrorLog?>,
+    private val normalizedStatusLens: BiDiLens<Request, NormalizedStatus?>,
+    private val requestIdChainLens: RequestContextLens<List<UUID>>,
+    /** A callback to pass the final log entry to a logger, like SLF4J. */
+    private val logHandler: (RequestResponseLog<T>) -> Unit,
+    /**
+     * `true` to log both request and response body. Only logs white-listed content types in
+     * [contentTypesToLog].
+     */
+    private val includeBody: Boolean = true,
+    /**
+     * Content-Type header values to white-list for logging. Requests or responses with different
+     * types will not have their body logged.
+     */
+    private val contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
+    /**
+     * Header names to black-list from logging. Their values are replaced with `*REDACTED*` in both
+     * request and response.
+     */
+    private val redactedHeaders: List<String> = listOf("authorization", "x-api-key"),
+) : Filter {
+  override fun invoke(nextHandler: HttpHandler): HttpHandler {
+    return { request ->
+      val requestIdChain = requestIdChainLens(request)
+      val startTimeInstant = Instant.now()
+      val startTime = System.nanoTime()
 
-  init {
-    if (logger is NOPLogger) throw RuntimeException("Logging is not configured!")
-  }
+      // Pass to the next filters.
+      val response = nextHandler(request)
 
-  /**
-   * The maximum size of a CloudWatch log event is 256 KiB.
-   *
-   * From our experience storing longer lines will result in the line being wrapped, so it no longer
-   * will be parsed correctly as JSON.
-   *
-   * We limit the body size we store to stay below this limit.
-   */
-  internal const val MAX_BODY_LOGGED = 50 * 1024
+      val endTimeInstant = Instant.now()
+      val duration = Duration.ofNanos(System.nanoTime() - startTime)
 
-  /**
-   * Request/response bodies that are capped by [MAX_BODY_LOGGED] have this suffix added to the end,
-   * to indicate that the body was capped.
-   */
-  internal const val CAPPED_BODY_SUFFIX = "**CAPPED**"
+      val logRequestBody = includeBody && request.shouldLogBody(contentTypesToLog)
+      val logResponseBody = includeBody && response.shouldLogBody(request, contentTypesToLog)
 
-  private val json = Json {
-    encodeDefaults = true
-    ignoreUnknownKeys = true
+      val requestBody = if (logRequestBody) readLimitedBody(request) else null
+      val responseBody = if (logResponseBody) readLimitedBody(response) else null
+
+      val logEntry =
+          RequestResponseLog(
+              timestamp = Instant.now(),
+              requestId = requestIdChain.last(),
+              requestIdChain = requestIdChain,
+              request =
+                  RequestLog(
+                      timestamp = startTimeInstant,
+                      method = request.method.toString(),
+                      uri = request.uri.toString(),
+                      headers = cleanAndNormalizeHeaders(request.headers, redactedHeaders),
+                      size = request.body.length?.toInt() ?: requestBody?.length,
+                      body = requestBody,
+                  ),
+              response =
+                  ResponseLog(
+                      timestamp = endTimeInstant,
+                      statusCode = response.status.code,
+                      headers = cleanAndNormalizeHeaders(response.headers, redactedHeaders),
+                      size = response.body.length?.toInt() ?: responseBody?.length,
+                      body = responseBody,
+                  ),
+              principal = principalLog(request),
+              durationMs = duration.toMillis(),
+              throwable = errorLogLens(request)?.throwable,
+              status = normalizedStatusLens(request) ?: deriveNormalizedStatus(response),
+              thread = Thread.currentThread().name,
+          )
+
+      logHandler(logEntry)
+
+      response
+    }
   }
 
   private fun cleanAndNormalizeHeaders(
@@ -122,159 +173,111 @@ object LoggingFilter {
     return this.shouldLogContentType(contentTypesToLog)
   }
 
-  operator fun <T : PrincipalLog> invoke(
-      /** Extracts whe [PrincipalLog] from the [Request]. */
-      principalLog: (Request) -> T?,
-      /** Reads the [ErrorLog] from the [Request], if any. */
-      errorLogLens: BiDiLens<Request, ErrorLog?>,
-      normalizedStatusLens: BiDiLens<Request, NormalizedStatus?>,
-      requestIdChainLens: RequestContextLens<List<UUID>>,
-      /** A callback to pass the final log entry to a logger, like SLF4J. */
-      logHandler: (RequestResponseLog<T>) -> Unit,
-      /**
-       * `true` to log both request and response body. Only logs white-listed content types in
-       * [contentTypesToLog].
-       */
-      includeBody: Boolean = true,
-      /**
-       * Content-Type header values to white-list for logging. Requests or responses with different
-       * types will not have their body logged.
-       */
-      contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
-      /**
-       * Header names to black-list from logging. Their values are replaced with `*REDACTED*` in
-       * both request and response.
-       */
-      redactedHeaders: List<String> = listOf("authorization", "x-api-key"),
-  ) = Filter { next ->
-    { request ->
-      val requestIdChain = requestIdChainLens(request)
-      val startTimeInstant = Instant.now()
-      val startTime = System.nanoTime()
+  companion object {
+    /**
+     * The maximum size of a CloudWatch log event is 256 KiB.
+     *
+     * From our experience storing longer lines will result in the line being wrapped, so it no
+     * longer will be parsed correctly as JSON.
+     *
+     * We limit the body size we store to stay below this limit.
+     */
+    internal const val MAX_BODY_LOGGED = 50 * 1024
 
-      // Pass to the next filters.
-      val response = next(request)
+    /**
+     * Request/response bodies that are capped by [MAX_BODY_LOGGED] have this suffix added to the
+     * end, to indicate that the body was capped.
+     */
+    internal const val CAPPED_BODY_SUFFIX = "**CAPPED**"
 
-      val endTimeInstant = Instant.now()
-      val duration = Duration.ofNanos(System.nanoTime() - startTime)
+    private val logger = LoggerFactory.getLogger(LoggingFilter::class.java)
 
-      val logRequestBody = includeBody && request.shouldLogBody(contentTypesToLog)
-      val logResponseBody = includeBody && response.shouldLogBody(request, contentTypesToLog)
-
-      val requestBody = if (logRequestBody) readLimitedBody(request) else null
-      val responseBody = if (logResponseBody) readLimitedBody(response) else null
-
-      val logEntry =
-          RequestResponseLog(
-              timestamp = Instant.now(),
-              requestId = requestIdChain.last(),
-              requestIdChain = requestIdChain,
-              request =
-                  RequestLog(
-                      timestamp = startTimeInstant,
-                      method = request.method.toString(),
-                      uri = request.uri.toString(),
-                      headers = cleanAndNormalizeHeaders(request.headers, redactedHeaders),
-                      size = request.body.length?.toInt() ?: requestBody?.length,
-                      body = requestBody,
-                  ),
-              response =
-                  ResponseLog(
-                      timestamp = endTimeInstant,
-                      statusCode = response.status.code,
-                      headers = cleanAndNormalizeHeaders(response.headers, redactedHeaders),
-                      size = response.body.length?.toInt() ?: responseBody?.length,
-                      body = responseBody,
-                  ),
-              principal = principalLog(request),
-              durationMs = duration.toMillis(),
-              throwable = errorLogLens(request)?.throwable,
-              status = normalizedStatusLens(request) ?: deriveNormalizedStatus(response),
-              thread = Thread.currentThread().name,
-          )
-
-      logHandler(logEntry)
-
-      response
-    }
-  }
-
-  /**
-   * Log handler that will log information from the request using `INFO` level under the requestInfo
-   * property. Errors are logged with `WARN` level, except `500` responses, which are logged at
-   * `ERROR` level.
-   *
-   * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder, since
-   * it uses special markers that it will parse.
-   *
-   * Uses default [LifligUserPrincipalLog] serializer. Either because you actually want to use this
-   * principalLog class for logging or because you do not have a concept principal and do not want
-   * clutter code with unused things.
-   */
-  fun createLogHandler(
-      /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
-      suppressSuccessfulHealthChecks: Boolean = true,
-  ): (RequestResponseLog<LifligUserPrincipalLog>) -> Unit = { entry ->
-    logEntry(entry, LifligUserPrincipalLog.serializer(), suppressSuccessfulHealthChecks)
-  }
-
-  /**
-   * Log handler that will log information from the request using `INFO` level under the requestInfo
-   * property. Errors are logged with `WARN` level, except `500` responses, which are logged at
-   * `ERROR` level.
-   *
-   * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder, since
-   * it uses special markers that it will parse.
-   */
-  fun <T : PrincipalLog> createLogHandler(
-      /**
-       * Serializer for custom principal data class when you do not want to use Liflig default
-       * [LifligUserPrincipalLog].
-       */
-      principalLogSerializer: KSerializer<T>,
-      /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
-      suppressSuccessfulHealthChecks: Boolean = true,
-  ): (RequestResponseLog<T>) -> Unit = { entry ->
-    logEntry(entry, principalLogSerializer, suppressSuccessfulHealthChecks)
-  }
-
-  private fun <T : PrincipalLog> logEntry(
-      entry: RequestResponseLog<T>,
-      principalLogSerializer: KSerializer<T>,
-      suppressSuccessfulHealthChecks: Boolean,
-  ) {
-    val request = entry.request
-    val response = entry.response
-
-    val logMarker: Marker by lazy {
-      Markers.appendRaw(
-          "requestInfo",
-          json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
-      )
+    init {
+      if (logger is NOPLogger) throw RuntimeException("Logging is not configured!")
     }
 
-    when {
-      suppressSuccessfulHealthChecks &&
-          request.uri == "/health" &&
-          response.statusCode == 200 &&
-          entry.throwable == null -> {
-        // NoOp
+    private val json = Json {
+      encodeDefaults = true
+      ignoreUnknownKeys = true
+    }
+
+    /**
+     * Log handler that will log information from the request using `INFO` level under the
+     * requestInfo property. Errors are logged with `WARN` level, except `500` responses, which are
+     * logged at `ERROR` level.
+     *
+     * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder,
+     * since it uses special markers that it will parse.
+     *
+     * Uses default [LifligUserPrincipalLog] serializer. Either because you actually want to use
+     * this principalLog class for logging or because you do not have a concept principal and do not
+     * want clutter code with unused things.
+     */
+    fun createLogHandler(
+        /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
+        suppressSuccessfulHealthChecks: Boolean = true,
+    ): (RequestResponseLog<LifligUserPrincipalLog>) -> Unit = { entry ->
+      logEntry(entry, LifligUserPrincipalLog.serializer(), suppressSuccessfulHealthChecks)
+    }
+
+    /**
+     * Log handler that will log information from the request using `INFO` level under the
+     * requestInfo property. Errors are logged with `WARN` level, except `500` responses, which are
+     * logged at `ERROR` level.
+     *
+     * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder,
+     * since it uses special markers that it will parse.
+     */
+    fun <T : PrincipalLog> createLogHandler(
+        /**
+         * Serializer for custom principal data class when you do not want to use Liflig default
+         * [LifligUserPrincipalLog].
+         */
+        principalLogSerializer: KSerializer<T>,
+        /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
+        suppressSuccessfulHealthChecks: Boolean = true,
+    ): (RequestResponseLog<T>) -> Unit = { entry ->
+      logEntry(entry, principalLogSerializer, suppressSuccessfulHealthChecks)
+    }
+
+    private fun <T : PrincipalLog> logEntry(
+        entry: RequestResponseLog<T>,
+        principalLogSerializer: KSerializer<T>,
+        suppressSuccessfulHealthChecks: Boolean,
+    ) {
+      val request = entry.request
+      val response = entry.response
+
+      val logMarker: Marker by lazy {
+        Markers.appendRaw(
+            "requestInfo",
+            json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
+        )
       }
-      entry.throwable != null -> {
-        val level = if (entry.response.statusCode == 500) Level.ERROR else Level.WARN
-        logger
-            .atLevel(level)
-            .addMarker(logMarker)
-            .setCause(entry.throwable)
-            .log(
-                "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
+
+      when {
+        suppressSuccessfulHealthChecks &&
+            request.uri == "/health" &&
+            response.statusCode == 200 &&
+            entry.throwable == null -> {
+          // NoOp
+        }
+        entry.throwable != null -> {
+          val level = if (entry.response.statusCode == 500) Level.ERROR else Level.WARN
+          logger
+              .atLevel(level)
+              .addMarker(logMarker)
+              .setCause(entry.throwable)
+              .log(
+                  "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
+              )
+        }
+        else ->
+            logger.info(
+                logMarker,
+                "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
             )
       }
-      else ->
-          logger.info(
-              logMarker,
-              "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
-          )
     }
   }
 }

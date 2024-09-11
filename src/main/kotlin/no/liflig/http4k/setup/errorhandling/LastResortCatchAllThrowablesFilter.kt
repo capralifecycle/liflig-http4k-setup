@@ -1,6 +1,7 @@
 package no.liflig.http4k.setup.errorhandling
 
 import org.http4k.core.Filter
+import org.http4k.core.HttpHandler
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.slf4j.LoggerFactory
@@ -15,17 +16,19 @@ import org.slf4j.LoggerFactory
  * It is important to catch the throwables and not let it pass to Jetty as it will potentially be
  * displayed for the client with a Jetty-specific response.
  */
-object LastResortCatchAllThrowablesFilter {
-  private val logger = LoggerFactory.getLogger(LastResortCatchAllThrowablesFilter.javaClass)
-
-  operator fun invoke() = Filter { next ->
-    { request ->
+class LastResortCatchAllThrowablesFilter : Filter {
+  override fun invoke(nextHandler: HttpHandler): HttpHandler {
+    return { request ->
       try {
-        next(request)
+        nextHandler(request)
       } catch (e: Throwable) {
         logger.error("Unhandled exception caught", e)
         Response(Status.INTERNAL_SERVER_ERROR).body("Something went wrong")
       }
     }
+  }
+
+  companion object {
+    private val logger = LoggerFactory.getLogger(LastResortCatchAllThrowablesFilter::class.java)
   }
 }
