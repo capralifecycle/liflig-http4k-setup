@@ -81,13 +81,20 @@ object LoggingFilter {
    * [excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog], but the
    * logging filter should also not read more of the body than it intends to log.
    */
-  private fun readLimitedBody(httpMessage: HttpMessage): String {
-    httpMessage.body.stream.use { bodyStream ->
-      var limitedBody = bodyStream.readNBytes(MAX_BODY_LOGGED).toString(Charsets.UTF_8)
-      if (limitedBody.length >= MAX_BODY_LOGGED) {
-        limitedBody += CAPPED_BODY_SUFFIX
+  private fun readLimitedBody(httpMessage: HttpMessage): String? {
+    try {
+      httpMessage.body.stream.use { bodyStream ->
+        var limitedBody = bodyStream.readNBytes(MAX_BODY_LOGGED).toString(Charsets.UTF_8)
+        if (limitedBody.length >= MAX_BODY_LOGGED) {
+          limitedBody += CAPPED_BODY_SUFFIX
+        }
+        return limitedBody
       }
-      return limitedBody
+    } catch (e: Exception) {
+      // We don't want to fail the request just because we failed to read the body for logs. So we
+      // just log the exception here and return null for the body.
+      logger.atError().setCause(e).log("Failed to read body for request/response log")
+      return null
     }
   }
 
