@@ -190,6 +190,45 @@ class LoggingFilterTest {
   }
 
   @Test
+  fun `readLimitedBody caps request and response body size`() {
+    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
+    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = true,
+            principalLog = { CustomPrincipalLog },
+            errorLogLens = RequestContextKey.optional(contexts),
+            normalizedStatusLens = RequestContextKey.optional(contexts),
+            requestIdChainLens = requestIdChainLens,
+            logHandler = {
+              events.add(it)
+              Unit
+            },
+        )
+
+    val bodyExceedingMaxLoggedSize = "A".repeat(LoggingFilter.MAX_BODY_LOGGED + 100)
+
+    val handler =
+        ServerFilters.InitialiseRequestContext(contexts)
+            .then(RequestIdMdcFilter(requestIdChainLens))
+            .then(loggingFilter)
+            .then { Response(Status.OK).body(bodyExceedingMaxLoggedSize) }
+
+    val request = Request(Method.GET, "/some/url").body(bodyExceedingMaxLoggedSize)
+    val response = handler(request)
+    response.status shouldBe Status.OK
+
+    events shouldHaveSize 1
+    val event = events.first()
+
+    val expectedLoggedBody =
+        "A".repeat(LoggingFilter.MAX_BODY_LOGGED) + LoggingFilter.CAPPED_BODY_SUFFIX
+    event.request.body shouldBe expectedLoggedBody
+    event.response.body shouldBe expectedLoggedBody
+  }
+
+  @Test
   @Disabled("Until fixed")
   fun `log handler properly logs as json in combination with logback setup`() {
     val handler = LoggingFilter.createLogHandler(CustomPrincipalLog.serializer())

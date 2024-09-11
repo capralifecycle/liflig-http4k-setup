@@ -42,7 +42,13 @@ object LoggingFilter {
    *
    * We limit the body size we store to stay below this limit.
    */
-  private const val MAX_BODY_LOGGED = 50 * 1024
+  internal const val MAX_BODY_LOGGED = 50 * 1024
+
+  /**
+   * Request/response bodies that are capped by [MAX_BODY_LOGGED] have this suffix added to the end,
+   * to indicate that the body was capped.
+   */
+  internal const val CAPPED_BODY_SUFFIX = "**CAPPED**"
 
   private val json = Json {
     encodeDefaults = true
@@ -64,12 +70,26 @@ object LoggingFilter {
         )
       }
 
-  private fun String.limitBody() =
-      if (length > MAX_BODY_LOGGED) {
-        take(MAX_BODY_LOGGED) + "**CAPPED**"
-      } else {
-        this
+  /**
+   * See [MAX_BODY_LOGGED].
+   *
+   * Previously, we called [HttpMessage.bodyString] when logging request/response bodies, and only
+   * capped the size of the returned string. However, this reads the entire body into memory, and
+   * led to [java.util.concurrent.TimeoutException] when the body was truly massive. In these cases,
+   * the endpoint should probably exclude body logging with
+   * [excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog] or
+   * [excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog], but the
+   * logging filter should also not read more of the body than it intends to log.
+   */
+  private fun readLimitedBody(httpMessage: HttpMessage): String {
+    httpMessage.body.stream.use { bodyStream ->
+      var limitedBody = bodyStream.readNBytes(MAX_BODY_LOGGED).toString(Charsets.UTF_8)
+      if (limitedBody.length >= MAX_BODY_LOGGED) {
+        limitedBody += CAPPED_BODY_SUFFIX
       }
+      return limitedBody
+    }
+  }
 
   // Only log specific content types.
   // Include lack of content type as it is usually due to an error.
@@ -134,8 +154,8 @@ object LoggingFilter {
       val logRequestBody = includeBody && request.shouldLogBody(contentTypesToLog)
       val logResponseBody = includeBody && response.shouldLogBody(request, contentTypesToLog)
 
-      val requestBody = if (logRequestBody) request.bodyString() else null
-      val responseBody = if (logResponseBody) response.bodyString() else null
+      val requestBody = if (logRequestBody) readLimitedBody(request) else null
+      val responseBody = if (logResponseBody) readLimitedBody(response) else null
 
       val logEntry =
           RequestResponseLog(
@@ -149,7 +169,7 @@ object LoggingFilter {
                       uri = request.uri.toString(),
                       headers = cleanAndNormalizeHeaders(request.headers, redactedHeaders),
                       size = request.body.length?.toInt() ?: requestBody?.length,
-                      body = requestBody?.limitBody(),
+                      body = requestBody,
                   ),
               response =
                   ResponseLog(
@@ -157,7 +177,7 @@ object LoggingFilter {
                       statusCode = response.status.code,
                       headers = cleanAndNormalizeHeaders(response.headers, redactedHeaders),
                       size = response.body.length?.toInt() ?: responseBody?.length,
-                      body = responseBody?.limitBody(),
+                      body = responseBody,
                   ),
               principal = principalLog(request),
               durationMs = duration.toMillis(),
