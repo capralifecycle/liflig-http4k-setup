@@ -13,7 +13,7 @@ internal object InstantSerializer : KSerializer<Instant> {
   private val formatter = DateTimeFormatter.ISO_INSTANT
 
   override val descriptor: SerialDescriptor =
-      PrimitiveSerialDescriptor("InstantSerializer", PrimitiveKind.STRING)
+      PrimitiveSerialDescriptor("java.time.Instant", PrimitiveKind.STRING)
 
   override fun serialize(encoder: Encoder, value: Instant): Unit =
       encoder.encodeString(formatter.format(value))
