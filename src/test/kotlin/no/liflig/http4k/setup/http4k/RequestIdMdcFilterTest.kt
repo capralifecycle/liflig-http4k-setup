@@ -4,7 +4,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveLength
 import java.util.UUID
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
-import no.liflig.http4k.setup.filters.RequestIdMdcFilter.getRequestIdChainFromMdc
+import no.liflig.http4k.setup.filters.getRequestIdChainFromMdc
 import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.RequestContexts

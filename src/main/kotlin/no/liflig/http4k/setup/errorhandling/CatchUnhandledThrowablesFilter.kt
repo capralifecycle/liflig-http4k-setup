@@ -1,8 +1,8 @@
 package no.liflig.http4k.setup.errorhandling
 
-import mu.KLogging
 import no.liflig.http4k.setup.logging.LoggingFilter
 import org.http4k.core.Filter
+import org.http4k.core.HttpHandler
 import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
@@ -23,11 +23,13 @@ import org.http4k.lens.BiDiLens
  * Note! Must be placed after [LoggingFilter] in filter chain in order to properly attach throwable
  * to log.
  */
-object CatchUnhandledThrowablesFilter : KLogging() {
-  operator fun invoke(errorLogLens: BiDiLens<Request, ErrorLog?>) = Filter { next ->
-    { request ->
+class CatchUnhandledThrowablesFilter(
+    private val errorLogLens: BiDiLens<Request, ErrorLog?>,
+) : Filter {
+  override fun invoke(nextHandler: HttpHandler): HttpHandler {
+    return { request ->
       try {
-        next(request)
+        nextHandler(request)
       } catch (throwable: Throwable) {
         request.with(errorLogLens of ErrorLog(throwable))
 
