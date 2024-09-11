@@ -2,7 +2,7 @@ package no.liflig.http4k.setup.http4k
 
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
-import no.liflig.http4k.setup.lenses.MultiValueQuery
+import no.liflig.http4k.setup.lenses.ListQuery
 import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.RequestContexts
@@ -13,10 +13,10 @@ import org.http4k.filter.ServerFilters
 import org.http4k.format.KotlinxSerialization.json
 import org.junit.jupiter.api.Test
 
-class MultiValueQueryTest {
+class ListQueryTest {
   @Test
-  fun `MultiValueQuery accepts query params on both param=value1,value2 and param=value1&param=value2 formats`() {
-    val queryParam = MultiValueQuery.required("param")
+  fun `ListQuery accepts query params on both param=value1,value2 and param=value1&param=value2 formats`() {
+    val queryParam = ListQuery.required("param")
 
     val handler =
         ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
@@ -36,7 +36,7 @@ class MultiValueQueryTest {
 
   @Test
   fun `mapValues maps values correctly`() {
-    val idsQuery = MultiValueQuery.mapValues { Id(it) }.required("ids")
+    val idsQuery = ListQuery.mapValues { Id(it) }.required("ids")
 
     val handler =
         ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
@@ -51,10 +51,9 @@ class MultiValueQueryTest {
   }
 
   @Test
-  fun `Bidirectional mapValues sets values correctly`() {
+  fun `bidirectional mapValues sets values correctly`() {
     val idsQuery =
-        MultiValueQuery.mapValues(incoming = { Id(it) }, outgoing = { id -> id.value })
-            .required("ids")
+        ListQuery.mapValues(incoming = { Id(it) }, outgoing = { id -> id.value }).required("ids")
 
     val handler =
         ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->

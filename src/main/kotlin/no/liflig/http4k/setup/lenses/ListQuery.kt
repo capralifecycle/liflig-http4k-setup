@@ -22,7 +22,7 @@ import org.http4k.lens.ParamMeta
  * and the second format, i.e. multiple query params with the same key or a single query param with
  * comma-separated values.
  */
-object MultiValueQuery :
+object ListQuery :
     BiDiLensSpec<Request, List<String>>(
         location = "query",
         ParamMeta.ArrayParam(ParamMeta.StringParam),
@@ -44,7 +44,7 @@ object MultiValueQuery :
     ) {
   /**
    * Works like [LensSpec.map], except the mapper function applies to each value of the query param,
-   * so you don't have to do `MultiValueQuery.map { values -> values.map { ... } }` yourself.
+   * so you don't have to do `ListQuery.map { values -> values.map { ... } }` yourself.
    */
   fun <T> mapValues(mapper: (String) -> T): LensSpec<Request, List<T>> {
     return this.map { values -> values.map(mapper) }
@@ -52,8 +52,8 @@ object MultiValueQuery :
 
   /**
    * Works like [BiDiLensSpec.map], except the mapper functions apply to each value of the query
-   * param, so you don't have to do `MultiValueQuery.map({ values -> values.map { ... } }, { values
-   * -> values.map { ... } })` yourself.
+   * param, so you don't have to do `ListQuery.map({ values -> values.map { ... } }, { values ->
+   * values.map { ... } })` yourself.
    */
   fun <T> mapValues(
       incoming: (String) -> T,
