@@ -1,9 +1,8 @@
 package no.liflig.http4k.setup
 
-import java.util.*
+import java.util.UUID
 import no.liflig.http4k.setup.errorhandling.CatchUnhandledThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
-import no.liflig.http4k.setup.errorhandling.ErrorLog
 import no.liflig.http4k.setup.errorhandling.LastResortCatchAllThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
@@ -75,7 +74,6 @@ class LifligBasicApiSetup(
       principalLog: (Request) -> LifligUserPrincipalLog?
   ): LifligBasicApiSetupConfig {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
-    val errorLogLens = RequestContextKey.optional<ErrorLog>(contexts)
     val normalizedStatusLens = RequestContextKey.optional<NormalizedStatus>(contexts)
 
     val errorResponseRenderer =

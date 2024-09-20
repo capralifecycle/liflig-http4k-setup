@@ -18,11 +18,11 @@ fun Request.attachThrowableToLog(throwable: Throwable) {
 }
 
 /**
- * Returns a standardized error response following the 'Problem Details' specification.
+ * Returns a standardized error response following the
+ * [Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) specification.
  *
- * If a [cause] throwable is given, attaches it to the request log.
- *
- * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">Problem Details specification</a>
+ * @param cause Attaches the exception to the request log, if given. You should always set this if
+ *   the error response was due to an exception.
  */
 fun errorResponse(
     request: Request,

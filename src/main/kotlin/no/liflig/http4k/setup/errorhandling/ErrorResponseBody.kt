@@ -8,10 +8,8 @@ import org.http4k.core.with
 import org.http4k.format.KotlinxSerialization.auto
 
 /**
- * Standard error response body used for internal APIs for Liflig projects. Uses the 'Problem
- * Details' specification.
- *
- * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">Problem Details specification</a>
+ * Standard error response body used for internal APIs for Liflig projects. Uses the
+ * [Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) specification.
  */
 @Serializable
 data class ErrorResponseBody(

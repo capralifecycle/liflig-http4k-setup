@@ -8,13 +8,15 @@ import java.io.FileDescriptor
 import java.io.FileOutputStream
 import java.io.PrintStream
 import java.time.Instant
-import java.util.*
+import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.liflig.http4k.setup.contexts
+import no.liflig.http4k.setup.errorLogLens
+import no.liflig.http4k.setup.errorResponse
 import no.liflig.http4k.setup.excludeRequestBodyFromLog
 import no.liflig.http4k.setup.excludeResponseBodyFromLog
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
@@ -187,6 +189,47 @@ class LoggingFilterTest {
 
     event.request.body shouldBe null
     event.response.body shouldBe null
+  }
+
+  @Test
+  fun `errorResponse includes exception in log`() {
+    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
+    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = true,
+            principalLog = { CustomPrincipalLog },
+            /**
+             * Use global [errorLogLens], which is what is used by [errorResponse] and
+             * [no.liflig.http4k.setup.LifligBasicApiSetup.create].
+             */
+            errorLogLens = errorLogLens,
+            normalizedStatusLens = RequestContextKey.optional(contexts),
+            requestIdChainLens = requestIdChainLens,
+            logHandler = {
+              events.add(it)
+              Unit
+            },
+        )
+
+    val exception = Exception("test exception")
+
+    val handler =
+        ServerFilters.InitialiseRequestContext(contexts)
+            .then(RequestIdMdcFilter(requestIdChainLens))
+            .then(loggingFilter)
+            .then { request ->
+              errorResponse(request, Status.NOT_FOUND, "Not found", cause = exception)
+            }
+
+    val response = handler(Request(Method.GET, "/some/url").body("request body"))
+
+    response.status shouldBe Status.NOT_FOUND
+
+    events shouldHaveSize 1
+    val event = events.first()
+    event.throwable shouldBe exception
   }
 
   @Test
