@@ -23,7 +23,7 @@
 
     <kotlin-logging-jvm.version>3.0.5</kotlin-logging-jvm.version>
     <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
-    <kotlinx-serialization.version>1.7.2</kotlinx-serialization.version>
+    <kotlinx-serialization.version>1.7.3</kotlinx-serialization.version>
     <slf4j-api.version>2.0.16</slf4j-api.version>
     <http4k.version>5.31.0.0</http4k.version>
 
