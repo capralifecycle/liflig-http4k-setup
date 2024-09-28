@@ -28,7 +28,7 @@
     <http4k.version>5.31.0.0</http4k.version>
 
     <!-- Testing-->
-    <junit-bom.version>5.11.0</junit-bom.version>
+    <junit-bom.version>5.11.1</junit-bom.version>
     <logback-classic.version>1.5.8</logback-classic.version>
     <!-- TODO: Replace with assert4j? -->
     <kotest-assertions-core-jvm.version>5.9.1</kotest-assertions-core-jvm.version>
