@@ -11,10 +11,13 @@ import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
+import no.liflig.http4k.setup.logging.LoggedBody
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
 import no.liflig.http4k.setup.logging.RequestLog
@@ -99,11 +102,11 @@ class LoggingFilterTest {
     logs shouldHaveSize 1
     val log = logs.first()
     log.principal shouldBe CustomPrincipalLog
-    log.request.body shouldBe ""
+    log.request.body shouldBe LoggedBody.raw("")
     log.request.method shouldBe "GET"
     log.request.size shouldBe 0
     log.request.uri shouldBe "/some/url"
-    log.response.body shouldBe "hello world"
+    log.response.body shouldBe LoggedBody.raw("hello world")
     log.response.size shouldBe 11
     log.response.statusCode shouldBe 200
     log.status?.code shouldBe NormalizedStatusCode.OK
@@ -245,8 +248,8 @@ class LoggingFilterTest {
 
     logs shouldHaveSize 1
     val log = logs.first()
-    log.request.body shouldBe """{"request":true}"""
-    log.response.body shouldBe """{"response":true}"""
+    log.request.body?.content shouldBe JsonObject(mapOf("request" to JsonPrimitive(true)))
+    log.response.body?.content shouldBe JsonObject(mapOf("response" to JsonPrimitive(true)))
   }
 
   private val plainTextBodyLens = Body.string(ContentType.TEXT_PLAIN).toLens()

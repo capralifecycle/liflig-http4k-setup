@@ -11,6 +11,8 @@ import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import no.liflig.http4k.setup.logging.json.InstantSerializer
 import no.liflig.http4k.setup.logging.json.ThrowableSerializer
 import no.liflig.http4k.setup.logging.json.UUIDSerializer
@@ -55,8 +57,8 @@ data class RequestLog(
     val method: String,
     val uri: String,
     val headers: List<Map<String, String?>>,
-    val size: Int?,
-    val body: String?,
+    val size: Long?,
+    val body: LoggedBody?,
 )
 
 @Serializable
@@ -65,6 +67,22 @@ data class ResponseLog(
     val timestamp: Instant,
     val statusCode: Int,
     val headers: List<Map<String, String?>>,
-    val size: Int?,
-    val body: String?,
+    val size: Long?,
+    val body: LoggedBody?,
 )
+
+/**
+ * [LoggingFilter] attaches the [RequestResponseLog] to the log as JSON. If the request/response
+ * body is also JSON, but included as a String on [RequestResponseLog], then it will be escaped in
+ * log output (i.e. '\' added before every string quote). This prevents us from using log analysis
+ * tools (such as CloudWatch) to query on fields in the body.
+ */
+@Serializable
+@JvmInline
+value class LoggedBody(val content: JsonElement) {
+  override fun toString() = content.toString()
+
+  internal companion object {
+    internal fun raw(content: String) = LoggedBody(JsonPrimitive(content))
+  }
+}

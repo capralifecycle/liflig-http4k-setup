@@ -82,16 +82,16 @@ class LoggingFilter<T : PrincipalLog>(
                       method = request.method.toString(),
                       uri = request.uri.toString(),
                       headers = cleanAndNormalizeHeaders(request.headers, redactedHeaders),
-                      size = request.body.length?.toInt() ?: requestBody?.length,
-                      body = requestBody,
+                      size = requestBody?.size,
+                      body = requestBody?.body,
                   ),
               response =
                   ResponseLog(
                       timestamp = endTimeInstant,
                       statusCode = response.status.code,
                       headers = cleanAndNormalizeHeaders(response.headers, redactedHeaders),
-                      size = response.body.length?.toInt() ?: responseBody?.length,
-                      body = responseBody,
+                      size = responseBody?.size,
+                      body = responseBody?.body,
                   ),
               principal = principalLog(request),
               durationMs = duration.toMillis(),
@@ -121,6 +121,8 @@ class LoggingFilter<T : PrincipalLog>(
         )
       }
 
+  data class ReadBodyResult(val body: LoggedBody, val size: Long)
+
   /**
    * See [MAX_LOGGED_BODY_SIZE].
    *
@@ -135,10 +137,10 @@ class LoggingFilter<T : PrincipalLog>(
    * We tried an implementation of this using [java.io.InputStream.readNBytes] to read only
    * [MAX_LOGGED_BODY_SIZE] bytes from the body - but that just returned an empty string
    */
-  private fun readLimitedBody(httpMessage: HttpMessage): String? {
+  private fun readLimitedBody(httpMessage: HttpMessage): ReadBodyResult? {
     try {
       /**
-       * [org.http4k.core.Body.length] is set based on the Content-Length header from the request:
+       * body.length is set based on the Content-Length header from the request:
        * https://github.com/http4k/http4k/blob/006bda6ac59b285e7bbb08a1d86fe60e2dbccb6a/http4k-server/jetty/src/main/kotlin/org/http4k/server/Http4kJettyHttpHandler.kt#L32
        *
        * This means we can't trust it: a malicious actor could set Content-Length that is completely
@@ -148,18 +150,30 @@ class LoggingFilter<T : PrincipalLog>(
        * However, if we do get a Content-Length that says the body is larger than
        * [MAX_LOGGED_BODY_SIZE], we can use that to avoid realizing the body stream below
        * (`httpMessage.body.payload` realizes the underlying stream, reading the whole body - we
-       * want to avoid this if we can).
+       * want to avoid that if we can).
        */
       val bodyLength = httpMessage.body.length
       if (bodyLength != null && bodyLength > MAX_LOGGED_BODY_SIZE) {
-        return BODY_TOO_LONG_MESSAGE
+        return ReadBodyResult(BODY_TOO_LONG_MESSAGE, size = bodyLength)
       }
 
-      if (httpMessage.body.payload.limit() > MAX_LOGGED_BODY_SIZE) {
-        return BODY_TOO_LONG_MESSAGE
+      val bufferSize = httpMessage.body.payload.limit()
+      if (bufferSize > MAX_LOGGED_BODY_SIZE) {
+        return ReadBodyResult(BODY_TOO_LONG_MESSAGE, size = bufferSize.toLong())
       }
 
-      return httpMessage.bodyString()
+      val bodyString = httpMessage.bodyString()
+
+      if (Header.CONTENT_TYPE(httpMessage)?.value == ContentType.APPLICATION_JSON.value) {
+        try {
+          val jsonBody = Json.parseToJsonElement(bodyString)
+          return ReadBodyResult(LoggedBody(jsonBody), size = bodyString.length.toLong())
+        } catch (_: Exception) {
+          // If we fail to parse the body as JSON, fall back to
+        }
+      }
+
+      return ReadBodyResult(LoggedBody.raw(bodyString), size = bodyString.length.toLong())
     } catch (e: Exception) {
       // We don't want to fail the request just because we failed to read the body for logs. So we
       // just log the exception here and return null for the body.
@@ -206,7 +220,7 @@ class LoggingFilter<T : PrincipalLog>(
     /**
      * When a request/response body exceeds [MAX_LOGGED_BODY_SIZE], this string is logged instead.
      */
-    internal const val BODY_TOO_LONG_MESSAGE = "<EXCEEDS MAX LOG SIZE>"
+    internal val BODY_TOO_LONG_MESSAGE = LoggedBody.raw("<EXCEEDS MAX LOG SIZE>")
 
     private val logger = LoggerFactory.getLogger(LoggingFilter::class.java)
 
