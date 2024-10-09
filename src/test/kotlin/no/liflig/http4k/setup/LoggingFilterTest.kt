@@ -1,4 +1,4 @@
-package no.liflig.http4k.setup.http4k
+package no.liflig.http4k.setup
 
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -14,11 +14,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import no.liflig.http4k.setup.contexts
-import no.liflig.http4k.setup.errorLogLens
-import no.liflig.http4k.setup.errorResponse
-import no.liflig.http4k.setup.excludeRequestBodyFromLog
-import no.liflig.http4k.setup.excludeResponseBodyFromLog
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
@@ -26,13 +21,18 @@ import no.liflig.http4k.setup.logging.RequestLog
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.logging.ResponseLog
 import no.liflig.http4k.setup.normalization.NormalizedStatusCode
+import no.liflig.http4k.setup.testutils.useHttpServer
+import org.http4k.core.Body
+import org.http4k.core.ContentType
 import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.then
+import org.http4k.core.with
 import org.http4k.filter.ServerFilters
 import org.http4k.lens.RequestContextKey
+import org.http4k.lens.string
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
@@ -41,29 +41,28 @@ import org.junit.jupiter.api.Test
 // and assumed to be what we use with liflig-logging.
 
 class LoggingFilterTest {
-
   private val exampleLog: RequestResponseLog<CustomPrincipalLog> =
       RequestResponseLog(
           timestamp = Instant.parse("2021-04-25T21:27:12.332741Z"),
           requestId = UUID.fromString("e1354392-8488-4ac0-9327-e22cd4d877ec"),
           requestIdChain = listOf(UUID.fromString("e1354392-8488-4ac0-9327-e22cd4d877ec")),
           request =
-              RequestLog(
-                  timestamp = Instant.parse("2021-04-25T21:27:12.222741Z"),
-                  method = "GET",
-                  uri = "/example",
-                  headers = emptyList(),
-                  size = null,
-                  body = null,
-              ),
+          RequestLog(
+              timestamp = Instant.parse("2021-04-25T21:27:12.222741Z"),
+              method = "GET",
+              uri = "/example",
+              headers = emptyList(),
+              size = null,
+              body = null,
+          ),
           response =
-              ResponseLog(
-                  timestamp = Instant.parse("2021-04-25T21:27:12.302741Z"),
-                  statusCode = 200,
-                  headers = emptyList(),
-                  size = null,
-                  body = null,
-              ),
+          ResponseLog(
+              timestamp = Instant.parse("2021-04-25T21:27:12.302741Z"),
+              statusCode = 200,
+              headers = emptyList(),
+              size = null,
+              body = null,
+          ),
           principal = null,
           durationMs = 10,
           throwable = null,
@@ -74,7 +73,7 @@ class LoggingFilterTest {
   @Test
   fun `filter gives expected log object`() {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
-    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
         LoggingFilter(
@@ -82,10 +81,7 @@ class LoggingFilterTest {
             errorLogLens = RequestContextKey.optional(contexts),
             normalizedStatusLens = RequestContextKey.optional(contexts),
             requestIdChainLens = requestIdChainLens,
-            logHandler = {
-              events.add(it)
-              Unit
-            },
+            logHandler = { log -> logs.add(log) },
         )
 
     val request = Request(Method.GET, "/some/url")
@@ -100,23 +96,22 @@ class LoggingFilterTest {
 
     response.status shouldBe Status.OK
 
-    events shouldHaveSize 1
-    val event = events.first()
-
-    event.principal shouldBe CustomPrincipalLog
-    event.request.body shouldBe ""
-    event.request.method shouldBe "GET"
-    event.request.size shouldBe 0
-    event.request.uri shouldBe "/some/url"
-    event.response.body shouldBe "hello world"
-    event.response.size shouldBe 11
-    event.response.statusCode shouldBe 200
-    event.status?.code shouldBe NormalizedStatusCode.OK
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.principal shouldBe CustomPrincipalLog
+    log.request.body shouldBe ""
+    log.request.method shouldBe "GET"
+    log.request.size shouldBe 0
+    log.request.uri shouldBe "/some/url"
+    log.response.body shouldBe "hello world"
+    log.response.size shouldBe 11
+    log.response.statusCode shouldBe 200
+    log.status?.code shouldBe NormalizedStatusCode.OK
   }
 
   @Test
   fun `filter will redact authorization header by default`() {
-    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
 
     val loggingFilter =
@@ -125,10 +120,7 @@ class LoggingFilterTest {
             errorLogLens = RequestContextKey.optional(contexts),
             normalizedStatusLens = RequestContextKey.optional(contexts),
             requestIdChainLens = requestIdChainLens,
-            logHandler = {
-              events.add(it)
-              Unit
-            },
+            logHandler = { log -> logs.add(log) },
         )
 
     val request = Request(Method.GET, "/some/url").header("authorization", "my very secret value")
@@ -141,11 +133,10 @@ class LoggingFilterTest {
 
     handler(request)
 
-    events shouldHaveSize 1
-    val event = events.first()
-
+    logs shouldHaveSize 1
+    val log = logs.first()
     val authorizationHeaders =
-        event.request.headers.filter { it["name"].equals("authorization", true) }
+        log.request.headers.filter { it["name"].equals("authorization", true) }
     authorizationHeaders shouldHaveSize 1
     authorizationHeaders.first()["value"] shouldBe "*REDACTED*"
   }
@@ -153,7 +144,7 @@ class LoggingFilterTest {
   @Test
   fun `excludeResponseBodyFromLog excludes response body`() {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
-    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
         LoggingFilter(
@@ -162,10 +153,7 @@ class LoggingFilterTest {
             errorLogLens = RequestContextKey.optional(contexts),
             normalizedStatusLens = RequestContextKey.optional(contexts),
             requestIdChainLens = requestIdChainLens,
-            logHandler = {
-              events.add(it)
-              Unit
-            },
+            logHandler = { log -> logs.add(log) },
         )
 
     val request = Request(Method.GET, "/some/url").body("request body")
@@ -184,17 +172,16 @@ class LoggingFilterTest {
 
     response.status shouldBe Status.OK
 
-    events shouldHaveSize 1
-    val event = events.first()
-
-    event.request.body shouldBe null
-    event.response.body shouldBe null
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.request.body shouldBe null
+    log.response.body shouldBe null
   }
 
   @Test
   fun `errorResponse includes exception in log`() {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
-    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
         LoggingFilter(
@@ -207,10 +194,7 @@ class LoggingFilterTest {
             errorLogLens = errorLogLens,
             normalizedStatusLens = RequestContextKey.optional(contexts),
             requestIdChainLens = requestIdChainLens,
-            logHandler = {
-              events.add(it)
-              Unit
-            },
+            logHandler = { log -> logs.add(log) },
         )
 
     val exception = Exception("test exception")
@@ -227,48 +211,67 @@ class LoggingFilterTest {
 
     response.status shouldBe Status.NOT_FOUND
 
-    events shouldHaveSize 1
-    val event = events.first()
-    event.throwable shouldBe exception
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.throwable shouldBe exception
   }
+
+  private val jsonBodyLens = Body.string(ContentType.APPLICATION_JSON).toLens()
+
+  /**
+   * We previously had a bug where request bodies would not be logged, even though all the tests
+   * here passed. The reason for this is that we only test http4k here, calling our handlers with
+   * in-memory bodies, whereas in production we use an actual HTTP server (Jetty), with actual byte
+   * stream bodies, which must be handled differently in some cases. So we now set up a Jetty server
+   * here to test real HTTP body handling.
+   */
+  @Test
+  fun `filter works with actual HTTP server`() {
+    val logs: MutableList<RequestResponseLog<LifligUserPrincipalLog>> = mutableListOf()
+
+    useHttpServer(
+        httpHandler = { request ->
+          // We previously had a bug where request bodies would not be logged if they were read in
+          // the handler. So we test this by applying the body lens here.
+          jsonBodyLens(request)
+          Response(Status.OK).with(jsonBodyLens.of("""{"response":true}"""))
+        },
+        logHandler = { log -> logs.add(log) },
+    ) { (httpClient, baseUrl) ->
+      httpClient(
+          Request(Method.POST, baseUrl).with(jsonBodyLens.of("""{"request":true}""")),
+      )
+    }
+
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.request.body shouldBe """{"request":true}"""
+    log.response.body shouldBe """{"response":true}"""
+  }
+
+  private val plainTextBodyLens = Body.string(ContentType.TEXT_PLAIN).toLens()
 
   @Test
   fun `readLimitedBody caps request and response body size`() {
-    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
-    val events: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+    val logs: MutableList<RequestResponseLog<LifligUserPrincipalLog>> = mutableListOf()
 
-    val loggingFilter =
-        LoggingFilter(
-            includeBody = true,
-            principalLog = { CustomPrincipalLog },
-            errorLogLens = RequestContextKey.optional(contexts),
-            normalizedStatusLens = RequestContextKey.optional(contexts),
-            requestIdChainLens = requestIdChainLens,
-            logHandler = {
-              events.add(it)
-              Unit
-            },
-        )
+    val bodyExceedingMaxLoggedSize = "A".repeat(LoggingFilter.MAX_LOGGED_BODY_SIZE + 100)
 
-    val bodyExceedingMaxLoggedSize = "A".repeat(LoggingFilter.MAX_BODY_LOGGED + 100)
+    useHttpServer(
+        httpHandler = {
+          Response(Status.OK).with(plainTextBodyLens.of(bodyExceedingMaxLoggedSize))
+        },
+        logHandler = { log -> logs.add(log) },
+    ) { (httpClient, baseUrl) ->
+      httpClient(
+          Request(Method.POST, baseUrl).with(plainTextBodyLens.of(bodyExceedingMaxLoggedSize)),
+      )
+    }
 
-    val handler =
-        ServerFilters.InitialiseRequestContext(contexts)
-            .then(RequestIdMdcFilter(requestIdChainLens))
-            .then(loggingFilter)
-            .then { Response(Status.OK).body(bodyExceedingMaxLoggedSize) }
-
-    val request = Request(Method.GET, "/some/url").body(bodyExceedingMaxLoggedSize)
-    val response = handler(request)
-    response.status shouldBe Status.OK
-
-    events shouldHaveSize 1
-    val event = events.first()
-
-    val expectedLoggedBody =
-        "A".repeat(LoggingFilter.MAX_BODY_LOGGED) + LoggingFilter.CAPPED_BODY_SUFFIX
-    event.request.body shouldBe expectedLoggedBody
-    event.response.body shouldBe expectedLoggedBody
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.request.body shouldBe LoggingFilter.BODY_TOO_LONG_MESSAGE
+    log.response.body shouldBe LoggingFilter.BODY_TOO_LONG_MESSAGE
   }
 
   @Test
@@ -325,5 +328,6 @@ class LoggingFilterTest {
         System.setOut(PrintStream(FileOutputStream(FileDescriptor.out)))
       }
 
-  @Serializable object CustomPrincipalLog : PrincipalLog
+  @Serializable
+  object CustomPrincipalLog : PrincipalLog
 }

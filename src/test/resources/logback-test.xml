@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <property resource="application.properties"/>
+
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    <file>log.jsonl</file> <!-- jsonl extension since it's newline-delimited JSON (https://jsonlines.org/) -->
+    <append>false</append>
+  </appender>
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <!--
+        %replace( [%marker]){' \[\]', ''} and %replace( [%mdc]){' \[\]', ''} below adds log markers and MDC
+        (thread-local log markers) in square brackets, but hides the square brackets if they're empty.
+      -->
+      <!-- @formatter:off -->
+      <pattern>
+        %white([%d{HH:mm:ss}]) %highlight(%level) %cyan(%logger{36}) %white(\(%file:%line\):) %msg%replace( [%marker]){' \[]', ''}%replace( [%mdc]){' \[]', ''}%n
+      </pattern>
+      <!-- @formatter:on -->
+    </encoder>
+  </appender>
+
+  <logger name="org.eclipse.jetty" level="WARN"/>
+  <logger name="no.liflig" level="DEBUG"/>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="FILE"/>
+  </root>
+</configuration>

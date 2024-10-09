@@ -122,7 +122,7 @@ class LoggingFilter<T : PrincipalLog>(
       }
 
   /**
-   * See [MAX_BODY_LOGGED].
+   * See [MAX_LOGGED_BODY_SIZE].
    *
    * Previously, we called [HttpMessage.bodyString] when logging request/response bodies, and only
    * capped the size of the returned string. However, this reads the entire body into memory, and
@@ -131,16 +131,35 @@ class LoggingFilter<T : PrincipalLog>(
    * [excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog] or
    * [excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog], but the
    * logging filter should also not read more of the body than it intends to log.
+   *
+   * We tried an implementation of this using [java.io.InputStream.readNBytes] to read only
+   * [MAX_LOGGED_BODY_SIZE] bytes from the body - but that just returned an empty string
    */
   private fun readLimitedBody(httpMessage: HttpMessage): String? {
     try {
-      httpMessage.body.stream.use { bodyStream ->
-        var limitedBody = bodyStream.readNBytes(MAX_BODY_LOGGED).toString(Charsets.UTF_8)
-        if (limitedBody.length >= MAX_BODY_LOGGED) {
-          limitedBody += CAPPED_BODY_SUFFIX
-        }
-        return limitedBody
+      /**
+       * [org.http4k.core.Body.length] is set based on the Content-Length header from the request:
+       * https://github.com/http4k/http4k/blob/006bda6ac59b285e7bbb08a1d86fe60e2dbccb6a/http4k-server/jetty/src/main/kotlin/org/http4k/server/Http4kJettyHttpHandler.kt#L32
+       *
+       * This means we can't trust it: a malicious actor could set Content-Length that is completely
+       * different from the actual length of the body. So naively reading the body based on this
+       * could expose us to denial-of-service attacks.
+       *
+       * However, if we do get a Content-Length that says the body is larger than
+       * [MAX_LOGGED_BODY_SIZE], we can use that to avoid realizing the body stream below
+       * (`httpMessage.body.payload` realizes the underlying stream, reading the whole body - we
+       * want to avoid this if we can).
+       */
+      val bodyLength = httpMessage.body.length
+      if (bodyLength != null && bodyLength > MAX_LOGGED_BODY_SIZE) {
+        return BODY_TOO_LONG_MESSAGE
       }
+
+      if (httpMessage.body.payload.limit() > MAX_LOGGED_BODY_SIZE) {
+        return BODY_TOO_LONG_MESSAGE
+      }
+
+      return httpMessage.bodyString()
     } catch (e: Exception) {
       // We don't want to fail the request just because we failed to read the body for logs. So we
       // just log the exception here and return null for the body.
@@ -182,13 +201,12 @@ class LoggingFilter<T : PrincipalLog>(
      *
      * We limit the body size we store to stay below this limit.
      */
-    internal const val MAX_BODY_LOGGED = 50 * 1024
+    internal const val MAX_LOGGED_BODY_SIZE = 50 * 1024
 
     /**
-     * Request/response bodies that are capped by [MAX_BODY_LOGGED] have this suffix added to the
-     * end, to indicate that the body was capped.
+     * When a request/response body exceeds [MAX_LOGGED_BODY_SIZE], this string is logged instead.
      */
-    internal const val CAPPED_BODY_SUFFIX = "**CAPPED**"
+    internal const val BODY_TOO_LONG_MESSAGE = "<EXCEEDS MAX LOG SIZE>"
 
     private val logger = LoggerFactory.getLogger(LoggingFilter::class.java)
 

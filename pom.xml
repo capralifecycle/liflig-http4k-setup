@@ -139,7 +139,12 @@
       <version>${kotest-assertions-core-jvm.version}</version>
       <scope>test</scope>
     </dependency>
-
+    <dependency>
+      <!-- For testing with an actual HTTP server -->
+      <groupId>org.http4k</groupId>
+      <artifactId>http4k-server-jetty</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

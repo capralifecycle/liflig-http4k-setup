@@ -1,4 +1,4 @@
-package no.liflig.http4k.setup.http4k
+package no.liflig.http4k.setup
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveLength

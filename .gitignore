@@ -3,7 +3,7 @@
 target
 *.iml
 /node_modules/
-/log.json
+/log.jsonl
 /overrides.properties
 **/.flattened-pom.xml
 .java-version
