@@ -47,22 +47,22 @@ class LoggingFilterTest {
           requestId = UUID.fromString("e1354392-8488-4ac0-9327-e22cd4d877ec"),
           requestIdChain = listOf(UUID.fromString("e1354392-8488-4ac0-9327-e22cd4d877ec")),
           request =
-          RequestLog(
-              timestamp = Instant.parse("2021-04-25T21:27:12.222741Z"),
-              method = "GET",
-              uri = "/example",
-              headers = emptyList(),
-              size = null,
-              body = null,
-          ),
+              RequestLog(
+                  timestamp = Instant.parse("2021-04-25T21:27:12.222741Z"),
+                  method = "GET",
+                  uri = "/example",
+                  headers = emptyList(),
+                  size = null,
+                  body = null,
+              ),
           response =
-          ResponseLog(
-              timestamp = Instant.parse("2021-04-25T21:27:12.302741Z"),
-              statusCode = 200,
-              headers = emptyList(),
-              size = null,
-              body = null,
-          ),
+              ResponseLog(
+                  timestamp = Instant.parse("2021-04-25T21:27:12.302741Z"),
+                  statusCode = 200,
+                  headers = emptyList(),
+                  size = null,
+                  body = null,
+              ),
           principal = null,
           durationMs = 10,
           throwable = null,
@@ -328,6 +328,5 @@ class LoggingFilterTest {
         System.setOut(PrintStream(FileOutputStream(FileDescriptor.out)))
       }
 
-  @Serializable
-  object CustomPrincipalLog : PrincipalLog
+  @Serializable object CustomPrincipalLog : PrincipalLog
 }
