@@ -66,7 +66,6 @@ class LifligBasicApiSetup(
      */
     private val errorResponseBodyRenderer: ErrorResponseRenderer = StandardErrorResponseBodyRenderer
 ) {
-
   fun create(
       /**
        * This param could be set in constructor, but is set here in order to nudge developer to

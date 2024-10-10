@@ -125,7 +125,14 @@ fun <T> createJsonBodyLens(
  * can use in our LoggingFilter to know that we don't have to re-parse the body.
  */
 fun Request.markBodyAsValidJson() {
-  this.with(requestBodyIsValidJson.of(true))
+  try {
+    this.with(requestBodyIsValidJson.of(true))
+  } catch (_: Exception) {
+    // This can throw if there is no 'x-http4k-context' header present on the request. Since we only
+    // call this as an optimization (to avoid re-parsing JSON in LoggingFilter), we never want to
+    // fail on this call, so we catch all exceptions. We test that it works in
+    // CreateJsonBodyLensTest.
+  }
 }
 
 internal val requestBodyIsValidJson = RequestContextKey.defaulted(contexts, false)
