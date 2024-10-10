@@ -18,7 +18,6 @@ import org.http4k.core.Headers
 import org.http4k.core.HttpHandler
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
-import org.http4k.core.Response
 import org.http4k.lens.BiDiLens
 import org.http4k.lens.Header
 import org.http4k.lens.RequestContextLens
@@ -46,7 +45,14 @@ class LoggingFilter<T : PrincipalLog>(
      * Content-Type header values to white-list for logging. Requests or responses with different
      * types will not have their body logged.
      */
-    private val contentTypesToLog: List<ContentType> = listOf(ContentType.APPLICATION_JSON),
+    private val contentTypesToLog: List<ContentType> =
+        listOf(
+            ContentType.APPLICATION_JSON,
+            ContentType.APPLICATION_XML,
+            ContentType.APPLICATION_FORM_URLENCODED,
+            ContentType.TEXT_PLAIN,
+            ContentType.TEXT_XML,
+        ),
     /**
      * Header names to black-list from logging. Their values are replaced with `*REDACTED*` in both
      * request and response.
@@ -65,11 +71,22 @@ class LoggingFilter<T : PrincipalLog>(
       val endTimeInstant = Instant.now()
       val duration = Duration.ofNanos(System.nanoTime() - startTime)
 
-      val logRequestBody = includeBody && request.shouldLogBody(contentTypesToLog)
-      val requestBody = if (logRequestBody) HttpBodyLog.from(request) else null
-
-      val logResponseBody = includeBody && response.shouldLogBody(request, contentTypesToLog)
-      val responseBody = if (logResponseBody) HttpBodyLog.from(response) else null
+      val requestBody =
+          when {
+            !includeBody -> null
+            !request.shouldLogContentType(contentTypesToLog) -> null
+            excludeRequestBodyFromLogLens(request) ->
+                HttpBodyLogWithSize(HttpBodyLog.BODY_EXCLUDED_MESSAGE, size = null)
+            else -> HttpBodyLog.from(request)
+          }
+      val responseBody =
+          when {
+            !includeBody -> null
+            !response.shouldLogContentType(contentTypesToLog) -> null
+            excludeResponseBodyFromLogLens(request) ->
+                HttpBodyLogWithSize(HttpBodyLog.BODY_EXCLUDED_MESSAGE, size = null)
+            else -> HttpBodyLog.from(response)
+          }
 
       val logEntry =
           RequestResponseLog(
@@ -126,23 +143,6 @@ class LoggingFilter<T : PrincipalLog>(
   private fun HttpMessage.shouldLogContentType(contentTypesToLog: List<ContentType>): Boolean {
     val contentType = Header.CONTENT_TYPE(this)
     return contentType == null || contentTypesToLog.any { contentType.value == it.value }
-  }
-
-  private fun Request.shouldLogBody(contentTypesToLog: List<ContentType>): Boolean {
-    if (excludeRequestBodyFromLogLens(this)) {
-      return false
-    }
-    return this.shouldLogContentType(contentTypesToLog)
-  }
-
-  private fun Response.shouldLogBody(
-      request: Request,
-      contentTypesToLog: List<ContentType>,
-  ): Boolean {
-    if (excludeResponseBodyFromLogLens(request)) {
-      return false
-    }
-    return this.shouldLogContentType(contentTypesToLog)
   }
 
   companion object {

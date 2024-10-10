@@ -152,7 +152,7 @@ class LoggingFilterTest {
   }
 
   @Test
-  fun `excludeResponseBodyFromLog excludes response body`() {
+  fun `excludeRequestBodyFromLog and excludeResponseBodyFromLog exclude bodies`() {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
@@ -166,7 +166,7 @@ class LoggingFilterTest {
             logHandler = { log -> logs.add(log) },
         )
 
-    val request = Request(Method.GET, "/some/url").body("request body")
+    val request = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body"))
 
     val handler =
         ServerFilters.InitialiseRequestContext(contexts)
@@ -175,7 +175,7 @@ class LoggingFilterTest {
             .then { receivedRequest ->
               receivedRequest.excludeRequestBodyFromLog()
               receivedRequest.excludeResponseBodyFromLog()
-              Response(Status.OK).body("hello world")
+              Response(Status.OK).with(plainTextBodyLens.of("hello world"))
             }
 
     val response = handler(request)
@@ -184,8 +184,8 @@ class LoggingFilterTest {
 
     logs shouldHaveSize 1
     val log = logs.first()
-    log.request.body shouldBe null
-    log.response.body shouldBe null
+    log.request.body shouldBe HttpBodyLog.BODY_EXCLUDED_MESSAGE
+    log.response.body shouldBe HttpBodyLog.BODY_EXCLUDED_MESSAGE
   }
 
   @Test

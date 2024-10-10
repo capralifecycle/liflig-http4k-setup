@@ -32,7 +32,7 @@ value class HttpBodyLog(val content: JsonElement) {
      * Extracts the body from the given request/response for logging. Ensures that the size of the
      * body does not exceed [MAX_LOGGED_BODY_SIZE], so it does not break CloudWatch.
      */
-    fun from(httpMessage: HttpMessage): BodyLogWithSize {
+    fun from(httpMessage: HttpMessage): HttpBodyLogWithSize {
       var bodySize: Long? = null
       try {
         /**
@@ -50,12 +50,12 @@ value class HttpBodyLog(val content: JsonElement) {
          */
         bodySize = httpMessage.body.length
         if (bodySize != null && bodySize > MAX_LOGGED_BODY_SIZE) {
-          return BodyLogWithSize(BODY_TOO_LONG_MESSAGE, size = bodySize)
+          return HttpBodyLogWithSize(BODY_TOO_LONG_MESSAGE, size = bodySize)
         }
 
         bodySize = httpMessage.body.payload.limit().toLong()
         if (bodySize > MAX_LOGGED_BODY_SIZE) {
-          return BodyLogWithSize(BODY_TOO_LONG_MESSAGE, size = bodySize)
+          return HttpBodyLogWithSize(BODY_TOO_LONG_MESSAGE, size = bodySize)
         }
 
         val bodyString = httpMessage.bodyString()
@@ -64,12 +64,12 @@ value class HttpBodyLog(val content: JsonElement) {
         val jsonBody = tryGetJsonBodyForLog(httpMessage, bodyString)
         val bodyLog = if (jsonBody != null) HttpBodyLog(jsonBody) else raw(bodyString)
 
-        return BodyLogWithSize(bodyLog, size = bodySize)
+        return HttpBodyLogWithSize(bodyLog, size = bodySize)
       } catch (e: Exception) {
         // We don't want to fail the request just because we failed to read the body for logs. So we
         // just log the exception here and return a failure message.
         logger.atWarn().setCause(e).log("Failed to read body for request/response log")
-        return BodyLogWithSize(FAILED_TO_READ_BODY_MESSAGE, size = bodySize)
+        return HttpBodyLogWithSize(FAILED_TO_READ_BODY_MESSAGE, size = bodySize)
       }
     }
 
@@ -93,10 +93,18 @@ value class HttpBodyLog(val content: JsonElement) {
     internal val BODY_TOO_LONG_MESSAGE = raw("<EXCEEDS MAX LOG SIZE>")
 
     internal val FAILED_TO_READ_BODY_MESSAGE = raw("<FAILED TO READ BODY>")
+
+    /**
+     * When [excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog] or
+     * [excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog] have been
+     * called in a handler, this message is used instead. We use this instead of setting the body
+     * field to null, to avoid confusion over why the body is not included in the request log.
+     */
+    internal val BODY_EXCLUDED_MESSAGE = raw("<EXCLUDED>")
   }
 }
 
-data class BodyLogWithSize(val body: HttpBodyLog, val size: Long?)
+data class HttpBodyLogWithSize(val body: HttpBodyLog, val size: Long?)
 
 private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): JsonElement? {
   return when {
