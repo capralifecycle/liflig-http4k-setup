@@ -7,7 +7,9 @@ import io.kotest.matchers.string.shouldHaveLineCount
 import java.io.ByteArrayOutputStream
 import java.io.FileDescriptor
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.io.PrintStream
+import java.nio.ByteBuffer
 import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -21,7 +23,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
-import no.liflig.http4k.setup.logging.BodyLog
+import no.liflig.http4k.setup.logging.HttpBodyLog
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
 import no.liflig.http4k.setup.logging.RequestLog
@@ -107,11 +109,11 @@ class LoggingFilterTest {
     logs shouldHaveSize 1
     val log = logs.first()
     log.principal shouldBe CustomPrincipalLog
-    log.request.body shouldBe BodyLog.raw("")
+    log.request.body shouldBe HttpBodyLog.raw("")
     log.request.method shouldBe "GET"
     log.request.size shouldBe 0
     log.request.uri shouldBe "/some/url"
-    log.response.body shouldBe BodyLog.raw("hello world")
+    log.response.body shouldBe HttpBodyLog.raw("hello world")
     log.response.size shouldBe 11
     log.response.statusCode shouldBe 200
     log.status?.code shouldBe NormalizedStatusCode.OK
@@ -301,7 +303,7 @@ response"}"""
 
   @Test
   fun `readLimitedBody caps request and response body size`() {
-    val bodyExceedingMaxLoggedSize = "A".repeat(LoggingFilter.MAX_LOGGED_BODY_SIZE + 100)
+    val bodyExceedingMaxLoggedSize = "A".repeat(HttpBodyLog.MAX_LOGGED_BODY_SIZE + 100)
 
     val log =
         getServerLog(
@@ -311,8 +313,27 @@ response"}"""
             parseRequestBody = false,
         )
 
-    log.request.body shouldBe LoggingFilter.BODY_TOO_LONG_MESSAGE
-    log.response.body shouldBe LoggingFilter.BODY_TOO_LONG_MESSAGE
+    log.request.body shouldBe HttpBodyLog.BODY_TOO_LONG_MESSAGE
+    log.response.body shouldBe HttpBodyLog.BODY_TOO_LONG_MESSAGE
+  }
+
+  @Test
+  fun `BodyLog fromHttpMessage catches read exceptions`() {
+    val alwaysFailingBody =
+        object : Body {
+          override val payload: ByteBuffer
+            get() = throw Exception("Expected failure")
+          override val stream: InputStream
+            get() = throw Exception("Expected failure")
+          override val length: Long?
+            get() = null
+
+          override fun close() {}
+        }
+
+    val request = Request(Method.GET, "/").body(alwaysFailingBody)
+    val bodyLog = HttpBodyLog.from(request)
+    bodyLog.body shouldBe HttpBodyLog.FAILED_TO_READ_BODY_MESSAGE
   }
 
   @Test
