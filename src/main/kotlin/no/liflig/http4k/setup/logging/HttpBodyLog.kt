@@ -16,6 +16,7 @@ import org.http4k.core.Body
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
+import org.http4k.core.Response
 import org.http4k.lens.Header
 
 /**
@@ -149,17 +150,25 @@ value class HttpBodyLog(val content: JsonElement) {
 data class HttpBodyLogWithSize(val body: HttpBodyLog, val size: Long?)
 
 private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): JsonElement? {
+  /** See [no.liflig.http4k.setup.markBodyAsValidJson]. */
+  var trustedBody = false
+  var bodyIsValidJson = false
+  if (httpMessage is Response) {
+    trustedBody = true
+  } else if (httpMessage is Request && requestBodyIsValidJson(httpMessage)) {
+    trustedBody = true
+    bodyIsValidJson = true
+  }
+
   return when {
-    // If Content-Type is not application/json, then this is not a JSON body
-    Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value -> null
-    /**
-     * We only want to include the body string as raw JSON if we trust the body (see
-     * [no.liflig.http4k.setup.markBodyAsValidJson]). In addition, the body can't include newlines,
-     * as that makes CloudWatch interpret the body as multiple different log messages (newlines are
-     * used to separate log entries).
-     */
-    (httpMessage is Request && !requestBodyIsValidJson(httpMessage)) ||
-        bodyString.containsUnescapedOrUnquotedNewlines() -> {
+    // If Content-Type is not application/json, we can't assume that this is a JSON body - unless it
+    // has already been validated as JSON.
+    (Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value &&
+        !bodyIsValidJson) -> null
+    // We only want to include the body string as raw JSON if we trust the body. In addition, the
+    // body can't include unescaped newlines, as that makes CloudWatch interpret the body as
+    // multiple different log messages (newlines are used to separate log entries).
+    !trustedBody || bodyString.containsUnescapedOrUnquotedNewlines() -> {
       try {
         return Json.parseToJsonElement(bodyString)
       } catch (_: Exception) {

@@ -270,6 +270,19 @@ class LoggingFilterTest {
     log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"response"}""")
   }
 
+  @OptIn(ExperimentalSerializationApi::class)
+  @Test
+  fun `filter does not reparse body with wrong Content-Type when it has already been parsed as JSON`() {
+    val log =
+        getServerLog(
+            requestBody = """{"type":"request"}""",
+            responseBody = "test",
+            bodyLens = plainTextBodyLens,
+        )
+
+    log.request.body?.content shouldBe JsonUnquotedLiteral("""{"type":"request"}""")
+  }
+
   /**
    * CloudWatch log output breaks if we send JSON with newlines, as newlines are used to separate
    * between log entries.
