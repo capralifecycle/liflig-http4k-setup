@@ -70,9 +70,9 @@ fun <T> createJsonBodyLens(
                         throw mapDecodingException(e)
                       }
 
-                  /** See [bodyIsValidJson]. */
+                  /** See [markBodyAsValidJson]. */
                   if (httpMessage is Request) {
-                    httpMessage.bodyIsValidJson()
+                    httpMessage.markBodyAsValidJson()
                   }
 
                   listOf(jsonBody)
@@ -124,8 +124,8 @@ fun <T> createJsonBodyLens(
  * The function uses a [RequestContextKey] to mark the request as having a valid JSON body, which we
  * can use in our LoggingFilter to know that we don't have to re-parse the body.
  */
-fun Request.bodyIsValidJson() {
-  this.with(requestJsonBodyLens.of(true))
+fun Request.markBodyAsValidJson() {
+  this.with(requestBodyIsValidJson.of(true))
 }
 
-internal val requestJsonBodyLens = RequestContextKey.defaulted(contexts, false)
+internal val requestBodyIsValidJson = RequestContextKey.defaulted(contexts, false)

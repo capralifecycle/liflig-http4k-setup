@@ -253,7 +253,7 @@ class LoggingFilterTest {
     log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"response"}""")
   }
 
-  /** See [no.liflig.http4k.setup.bodyIsValidJson]. */
+  /** See [no.liflig.http4k.setup.markBodyAsValidJson]. */
   @OptIn(ExperimentalSerializationApi::class)
   @Test
   fun `filter reparses request JSON when it has not been parsed in handler`() {

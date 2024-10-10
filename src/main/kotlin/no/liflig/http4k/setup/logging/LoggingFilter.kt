@@ -16,7 +16,7 @@ import no.liflig.http4k.setup.excludeRequestBodyFromLogLens
 import no.liflig.http4k.setup.excludeResponseBodyFromLogLens
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
-import no.liflig.http4k.setup.requestJsonBodyLens
+import no.liflig.http4k.setup.requestBodyIsValidJson
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Headers
@@ -319,11 +319,11 @@ private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): 
     Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value -> null
     /**
      * We only want to include the body string as raw JSON if we trust the body (see
-     * [no.liflig.http4k.setup.bodyIsValidJson]). In addition, the body can't include newlines, as
-     * that makes CloudWatch interpret the body as multiple different log messages (newlines are
+     * [no.liflig.http4k.setup.markBodyAsValidJson]). In addition, the body can't include newlines,
+     * as that makes CloudWatch interpret the body as multiple different log messages (newlines are
      * used to separate log entries).
      */
-    (httpMessage is Request && !requestJsonBodyLens(httpMessage)) ||
+    (httpMessage is Request && !requestBodyIsValidJson(httpMessage)) ||
         bodyString.containsUnescapedOrUnquotedNewlines() -> {
       try {
         return Json.parseToJsonElement(bodyString)
