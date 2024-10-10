@@ -1,5 +1,7 @@
 package no.liflig.http4k.setup.logging
 
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -80,8 +82,37 @@ value class HttpBodyLog(val content: JsonElement) {
         return raw(StandardCharsets.UTF_8.decode(body.payload).toString())
       }
 
-      val slice = body.payload.slice(0, MAX_LOGGED_BODY_SIZE)
-      return raw(StandardCharsets.UTF_8.decode(slice).toString() + TRUNCATED_BODY_SUFFIX)
+      /**
+       * Since we're dealing with large bodies here, we want to copy as little as possible. To
+       * achieve that, we:
+       * 1. Create a slice of the body's payload, with our max log size. This creates a view of the
+       *    payload, without copying the underlying buffer.
+       * 2. Allocate a CharBuffer with space for our max log size and our <TRUNCATED> suffix. We
+       *    need a CharBuffer to convert the body payload to a string, and can avoid an extra copy
+       *    by pre-allocating space for the whole payload + suffix.
+       * 3. Use [java.nio.charset.CharsetDecoder.decode] to decode the body payload into our
+       *    CharBuffer.
+       */
+      val truncateInput = body.payload.slice(0, MAX_LOGGED_BODY_SIZE)
+      val truncateOutput = CharBuffer.allocate(MAX_LOGGED_BODY_SIZE + TRUNCATED_BODY_SUFFIX.length)
+
+      val result =
+          StandardCharsets.UTF_8.newDecoder()
+              .onMalformedInput(CodingErrorAction.REPLACE)
+              .onUnmappableCharacter(CodingErrorAction.REPLACE)
+              .decode(truncateInput, truncateOutput, false)
+      if (result.isError || result.isOverflow || result.isMalformed || result.isUnmappable) {
+        // Will be caught and logged by HttpBodyLog.from
+        throw IllegalStateException("Failed to decode truncated body (reason: ${result})")
+      }
+
+      truncateOutput.append(TRUNCATED_BODY_SUFFIX)
+
+      // Flip advances the limit of the CharBuffer to where we last wrote.
+      // Required in order to show the output when converting to string.
+      truncateOutput.flip()
+
+      return raw(truncateOutput.toString())
     }
 
     private val log = KotlinLogging.logger {}
