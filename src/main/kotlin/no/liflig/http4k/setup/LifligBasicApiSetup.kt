@@ -14,6 +14,7 @@ import org.http4k.contract.ErrorResponseRenderer
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Request
+import org.http4k.core.RequestContexts
 import org.http4k.core.then
 import org.http4k.filter.CorsPolicy
 import org.http4k.filter.ServerFilters
@@ -121,3 +122,5 @@ data class LifligBasicApiSetupConfig(
      */
     val errorResponseRenderer: ContractLensErrorResponseRenderer
 )
+
+val contexts = RequestContexts()
