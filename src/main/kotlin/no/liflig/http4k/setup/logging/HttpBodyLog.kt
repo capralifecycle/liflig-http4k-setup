@@ -1,5 +1,6 @@
 package no.liflig.http4k.setup.logging
 
+import java.nio.charset.StandardCharsets
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -9,6 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonUnquotedLiteral
 import mu.KotlinLogging
 import no.liflig.http4k.setup.requestBodyIsValidJson
+import org.http4k.core.Body
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
@@ -50,12 +52,12 @@ value class HttpBodyLog(val content: JsonElement) {
          */
         bodySize = httpMessage.body.length
         if (bodySize != null && bodySize > MAX_LOGGED_BODY_SIZE) {
-          return HttpBodyLogWithSize(BODY_TOO_LONG_MESSAGE, size = bodySize)
+          return HttpBodyLogWithSize(truncateBody(httpMessage.body), size = bodySize)
         }
 
         bodySize = httpMessage.body.payload.limit().toLong()
         if (bodySize > MAX_LOGGED_BODY_SIZE) {
-          return HttpBodyLogWithSize(BODY_TOO_LONG_MESSAGE, size = bodySize)
+          return HttpBodyLogWithSize(truncateBody(httpMessage.body), size = bodySize)
         }
 
         val bodyString = httpMessage.bodyString()
@@ -71,6 +73,15 @@ value class HttpBodyLog(val content: JsonElement) {
         log.warn(e) { "Failed to read body for request/response log" }
         return HttpBodyLogWithSize(FAILED_TO_READ_BODY_MESSAGE, size = bodySize)
       }
+    }
+
+    private fun truncateBody(body: Body): HttpBodyLog {
+      if (body.payload.limit() <= MAX_LOGGED_BODY_SIZE) {
+        return raw(StandardCharsets.UTF_8.decode(body.payload).toString())
+      }
+
+      val slice = body.payload.slice(0, MAX_LOGGED_BODY_SIZE)
+      return raw(StandardCharsets.UTF_8.decode(slice).toString() + TRUNCATED_BODY_SUFFIX)
     }
 
     private val log = KotlinLogging.logger {}
@@ -90,7 +101,7 @@ value class HttpBodyLog(val content: JsonElement) {
     /**
      * When a request/response body exceeds [MAX_LOGGED_BODY_SIZE], this string is logged instead.
      */
-    internal val BODY_TOO_LONG_MESSAGE = raw("<EXCEEDS MAX LOG SIZE>")
+    internal const val TRUNCATED_BODY_SUFFIX = "<TRUNCATED>"
 
     internal val FAILED_TO_READ_BODY_MESSAGE = raw("<FAILED TO READ BODY>")
 

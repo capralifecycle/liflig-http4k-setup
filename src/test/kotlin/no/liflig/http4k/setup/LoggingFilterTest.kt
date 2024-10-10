@@ -303,7 +303,7 @@ response"}"""
 
   @Test
   fun `readLimitedBody caps request and response body size`() {
-    val bodyExceedingMaxLoggedSize = "A".repeat(HttpBodyLog.MAX_LOGGED_BODY_SIZE + 100)
+    val bodyExceedingMaxLoggedSize = "A".repeat(HttpBodyLog.MAX_LOGGED_BODY_SIZE * 2)
 
     val log =
         getServerLog(
@@ -313,8 +313,12 @@ response"}"""
             parseRequestBody = false,
         )
 
-    log.request.body shouldBe HttpBodyLog.BODY_TOO_LONG_MESSAGE
-    log.response.body shouldBe HttpBodyLog.BODY_TOO_LONG_MESSAGE
+    val expectedBodyLog =
+        HttpBodyLog.raw(
+            "A".repeat(HttpBodyLog.MAX_LOGGED_BODY_SIZE) + HttpBodyLog.TRUNCATED_BODY_SUFFIX,
+        )
+    log.request.body shouldBe expectedBodyLog
+    log.response.body shouldBe expectedBodyLog
   }
 
   @Test
