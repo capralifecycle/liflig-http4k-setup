@@ -6,8 +6,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.serialization.Serializable
-import org.http4k.core.Body
-import org.http4k.core.ContentType
 import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.RequestContext
@@ -15,7 +13,6 @@ import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.with
 import org.http4k.lens.LensFailure
-import org.http4k.lens.string
 import org.junit.jupiter.api.Test
 
 class CreateJsonBodyLensTest {
@@ -29,12 +26,9 @@ class CreateJsonBodyLensTest {
     }
   }
 
-  private val jsonStringBodyLens = Body.string(ContentType.APPLICATION_JSON).toLens()
-
   @Test
   fun `lens extracts body from request`() {
-    val requestBody = """{"id":1,"name":"test"}"""
-    val request = createRequest().with(jsonStringBodyLens.of(requestBody))
+    val request = createRequest().body("""{"id":1,"name":"test"}""")
 
     val dto = ExampleDto.bodyLens(request)
     dto.id shouldBe 1
@@ -52,8 +46,7 @@ class CreateJsonBodyLensTest {
 
   @Test
   fun `lens sets requestBodyIsValidJson on success`() {
-    val requestBody = """{"id":3,"name":"test"}"""
-    val request = createRequest().with(jsonStringBodyLens.of(requestBody))
+    val request = createRequest().body("""{"id":3,"name":"test"}""")
 
     ExampleDto.bodyLens(request)
     requestBodyIsValidJson(request) shouldBe true
@@ -61,8 +54,7 @@ class CreateJsonBodyLensTest {
 
   @Test
   fun `lens does not set requestBodyIsValidJson on failure`() {
-    val invalidRequestBody = """{"name":"no ID"}"""
-    val request = createRequest().with(jsonStringBodyLens.of(invalidRequestBody))
+    val request = createRequest().body("""{"name":"no ID"}""")
 
     shouldThrowAny { ExampleDto.bodyLens(request) }
     requestBodyIsValidJson(request) shouldBe false
@@ -81,8 +73,7 @@ class CreateJsonBodyLensTest {
             },
         )
 
-    val invalidRequestBody = """{"name":"no ID"}"""
-    val request = createRequest().with(jsonStringBodyLens.of(invalidRequestBody))
+    val request = createRequest().body("""{"name":"no ID"}""")
 
     val lensException = shouldThrowExactly<LensFailure> { bodyLens(request) }
     val customException = lensException.cause.shouldBeTypeOf<CustomException>()
