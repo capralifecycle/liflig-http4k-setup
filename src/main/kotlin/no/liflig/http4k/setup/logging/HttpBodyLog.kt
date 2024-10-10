@@ -7,12 +7,12 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonUnquotedLiteral
+import mu.KotlinLogging
 import no.liflig.http4k.setup.requestBodyIsValidJson
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
 import org.http4k.lens.Header
-import org.slf4j.LoggerFactory
 
 /**
  * [LoggingFilter] attaches the [RequestResponseLog] to the log as JSON. If the request/response
@@ -68,12 +68,12 @@ value class HttpBodyLog(val content: JsonElement) {
       } catch (e: Exception) {
         // We don't want to fail the request just because we failed to read the body for logs. So we
         // just log the exception here and return a failure message.
-        logger.atWarn().setCause(e).log("Failed to read body for request/response log")
+        log.warn(e) { "Failed to read body for request/response log" }
         return HttpBodyLogWithSize(FAILED_TO_READ_BODY_MESSAGE, size = bodySize)
       }
     }
 
-    private val logger = LoggerFactory.getLogger(HttpBodyLog::class.java)
+    private val log = KotlinLogging.logger {}
 
     internal fun raw(content: String) = HttpBodyLog(JsonPrimitive(content))
 

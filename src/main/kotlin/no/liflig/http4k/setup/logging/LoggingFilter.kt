@@ -146,6 +146,8 @@ class LoggingFilter<T : PrincipalLog>(
   }
 
   companion object {
+    // We use an SLF4J logger instead of KotlinLogging here, as KotlinLogging messed up the file
+    // location when using atLevel below
     private val logger = LoggerFactory.getLogger(LoggingFilter::class.java)
 
     init {

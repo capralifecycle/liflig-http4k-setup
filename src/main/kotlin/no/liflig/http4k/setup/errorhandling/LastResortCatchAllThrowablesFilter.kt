@@ -1,10 +1,10 @@
 package no.liflig.http4k.setup.errorhandling
 
+import mu.KotlinLogging
 import org.http4k.core.Filter
 import org.http4k.core.HttpHandler
 import org.http4k.core.Response
 import org.http4k.core.Status
-import org.slf4j.LoggerFactory
 
 /**
  * Filter to avoid leaking exceptions to the client. This does not store anything on context but
@@ -22,13 +22,13 @@ class LastResortCatchAllThrowablesFilter : Filter {
       try {
         nextHandler(request)
       } catch (e: Throwable) {
-        logger.error("Unhandled exception caught", e)
+        log.error(e) { "Unhandled exception caught" }
         Response(Status.INTERNAL_SERVER_ERROR).body("Something went wrong")
       }
     }
   }
 
   companion object {
-    private val logger = LoggerFactory.getLogger(LastResortCatchAllThrowablesFilter::class.java)
+    private val log = KotlinLogging.logger {}
   }
 }
