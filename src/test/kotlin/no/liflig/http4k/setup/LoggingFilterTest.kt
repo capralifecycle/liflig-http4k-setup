@@ -1,5 +1,6 @@
 package no.liflig.http4k.setup
 
+import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveLineCount
@@ -9,15 +10,18 @@ import java.io.FileOutputStream
 import java.io.PrintStream
 import java.time.Instant
 import java.util.UUID
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
-import no.liflig.http4k.setup.logging.LoggedBody
+import no.liflig.http4k.setup.logging.BodyLog
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
 import no.liflig.http4k.setup.logging.RequestLog
@@ -34,6 +38,7 @@ import org.http4k.core.Status
 import org.http4k.core.then
 import org.http4k.core.with
 import org.http4k.filter.ServerFilters
+import org.http4k.lens.BiDiBodyLens
 import org.http4k.lens.RequestContextKey
 import org.http4k.lens.string
 import org.junit.jupiter.api.Disabled
@@ -102,11 +107,11 @@ class LoggingFilterTest {
     logs shouldHaveSize 1
     val log = logs.first()
     log.principal shouldBe CustomPrincipalLog
-    log.request.body shouldBe LoggedBody.raw("")
+    log.request.body shouldBe BodyLog.raw("")
     log.request.method shouldBe "GET"
     log.request.size shouldBe 0
     log.request.uri shouldBe "/some/url"
-    log.response.body shouldBe LoggedBody.raw("hello world")
+    log.response.body shouldBe BodyLog.raw("hello world")
     log.response.size shouldBe 11
     log.response.statusCode shouldBe 200
     log.status?.code shouldBe NormalizedStatusCode.OK
@@ -219,7 +224,14 @@ class LoggingFilterTest {
     log.throwable shouldBe exception
   }
 
-  private val jsonBodyLens = Body.string(ContentType.APPLICATION_JSON).toLens()
+  private val jsonStringBodyLens = Body.string(ContentType.APPLICATION_JSON).toLens()
+
+  @Serializable
+  data class ExampleBody(val type: String) {
+    companion object {
+      val bodyLens = createJsonBodyLens(serializer())
+    }
+  }
 
   /**
    * We previously had a bug where request bodies would not be logged, even though all the tests
@@ -228,51 +240,77 @@ class LoggingFilterTest {
    * stream bodies, which must be handled differently in some cases. So we now set up a Jetty server
    * here to test real HTTP body handling.
    */
+  @OptIn(ExperimentalSerializationApi::class)
   @Test
   fun `filter works with actual HTTP server`() {
-    val logs: MutableList<RequestResponseLog<LifligUserPrincipalLog>> = mutableListOf()
+    val log =
+        getServerLog(
+            requestBody = """{"type":"request"}""",
+            responseBody = """{"type":"response"}""",
+        )
 
-    useHttpServer(
-        httpHandler = { request ->
-          // We previously had a bug where request bodies would not be logged if they were read in
-          // the handler. So we test this by applying the body lens here.
-          jsonBodyLens(request)
-          Response(Status.OK).with(jsonBodyLens.of("""{"response":true}"""))
-        },
-        logHandler = { log -> logs.add(log) },
-    ) { (httpClient, baseUrl) ->
-      httpClient(
-          Request(Method.POST, baseUrl).with(jsonBodyLens.of("""{"request":true}""")),
-      )
-    }
+    log.request.body?.content shouldBe JsonUnquotedLiteral("""{"type":"request"}""")
+    log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"response"}""")
+  }
 
-    logs shouldHaveSize 1
-    val log = logs.first()
-    log.request.body?.content shouldBe JsonObject(mapOf("request" to JsonPrimitive(true)))
-    log.response.body?.content shouldBe JsonObject(mapOf("response" to JsonPrimitive(true)))
+  /** See [no.liflig.http4k.setup.bodyIsValidJson]. */
+  @OptIn(ExperimentalSerializationApi::class)
+  @Test
+  fun `filter reparses request JSON when it has not been parsed in handler`() {
+    val log =
+        getServerLog(
+            requestBody = """{"type":"request"}""",
+            responseBody = """{"type":"response"}""",
+            parseRequestBody = false,
+        )
+
+    log.request.body?.content shouldBe JsonObject(mapOf("type" to JsonPrimitive("request")))
+    log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"response"}""")
+  }
+
+  /**
+   * CloudWatch log output breaks if we send JSON with newlines, as newlines are used to separate
+   * between log entries.
+   */
+  @Test
+  fun `filter reparses JSON with newlines`() {
+    // Newlines outside values
+    val requestBody = """{
+  "type": "request"
+}"""
+    // Newlines inside values
+    val responseBody = """{"type":"multiline
+response"}"""
+
+    val log = getServerLog(requestBody, responseBody)
+
+    log.request.body?.content shouldBe JsonObject(mapOf("type" to JsonPrimitive("request")))
+    log.response.body?.content shouldBe
+        JsonObject(mapOf("type" to JsonPrimitive("multiline\nresponse")))
+  }
+
+  @Test
+  fun `null JSON body parses to JsonNull`() {
+    val log = getServerLog(requestBody = "null", responseBody = "null", parseRequestBody = false)
+
+    log.request.body?.content shouldBe JsonNull
+    log.response.body?.content shouldBe JsonNull
   }
 
   private val plainTextBodyLens = Body.string(ContentType.TEXT_PLAIN).toLens()
 
   @Test
   fun `readLimitedBody caps request and response body size`() {
-    val logs: MutableList<RequestResponseLog<LifligUserPrincipalLog>> = mutableListOf()
-
     val bodyExceedingMaxLoggedSize = "A".repeat(LoggingFilter.MAX_LOGGED_BODY_SIZE + 100)
 
-    useHttpServer(
-        httpHandler = {
-          Response(Status.OK).with(plainTextBodyLens.of(bodyExceedingMaxLoggedSize))
-        },
-        logHandler = { log -> logs.add(log) },
-    ) { (httpClient, baseUrl) ->
-      httpClient(
-          Request(Method.POST, baseUrl).with(plainTextBodyLens.of(bodyExceedingMaxLoggedSize)),
-      )
-    }
+    val log =
+        getServerLog(
+            requestBody = bodyExceedingMaxLoggedSize,
+            responseBody = bodyExceedingMaxLoggedSize,
+            bodyLens = plainTextBodyLens,
+            parseRequestBody = false,
+        )
 
-    logs shouldHaveSize 1
-    val log = logs.first()
     log.request.body shouldBe LoggingFilter.BODY_TOO_LONG_MESSAGE
     log.response.body shouldBe LoggingFilter.BODY_TOO_LONG_MESSAGE
   }
@@ -317,6 +355,39 @@ class LoggingFilterTest {
     // unintentionally.
     json.jsonObject["logger_name"]!!.jsonPrimitive.contentOrNull shouldBe
         "no.liflig.logging.http4k.LoggingFilter"
+  }
+
+  private fun getServerLog(
+      requestBody: String,
+      responseBody: String,
+      parseRequestBody: Boolean = true,
+      bodyLens: BiDiBodyLens<String> = jsonStringBodyLens,
+  ): RequestResponseLog<LifligUserPrincipalLog> {
+    val logs: MutableList<RequestResponseLog<LifligUserPrincipalLog>> = mutableListOf()
+
+    useHttpServer(
+        logHandler = { log -> logs.add(log) },
+        httpHandler =
+            fun(request): Response {
+              if (parseRequestBody) {
+                try {
+                  ExampleBody.bodyLens(request)
+                } catch (e: Exception) {
+                  return Response(Status.BAD_REQUEST).body(e.message!!)
+                }
+              }
+              return Response(Status.OK).with(bodyLens.of(responseBody))
+            },
+    ) { (httpClient, baseUrl) ->
+      val response =
+          httpClient(
+              Request(Method.POST, baseUrl).with(bodyLens.of(requestBody)),
+          )
+      withClue(response.bodyString()) { response.status shouldBe Status.OK }
+    }
+
+    logs shouldHaveSize 1
+    return logs.first()
   }
 
   private fun captureStdout(block: () -> Unit): String =

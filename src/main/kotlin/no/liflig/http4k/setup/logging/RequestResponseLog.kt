@@ -58,7 +58,7 @@ data class RequestLog(
     val uri: String,
     val headers: List<Map<String, String?>>,
     val size: Long?,
-    val body: LoggedBody?,
+    val body: BodyLog?,
 )
 
 @Serializable
@@ -68,7 +68,7 @@ data class ResponseLog(
     val statusCode: Int,
     val headers: List<Map<String, String?>>,
     val size: Long?,
-    val body: LoggedBody?,
+    val body: BodyLog?,
 )
 
 /**
@@ -79,10 +79,10 @@ data class ResponseLog(
  */
 @Serializable
 @JvmInline
-value class LoggedBody(val content: JsonElement) {
+value class BodyLog(val content: JsonElement) {
   override fun toString() = content.toString()
 
   internal companion object {
-    internal fun raw(content: String) = LoggedBody(JsonPrimitive(content))
+    internal fun raw(content: String) = BodyLog(JsonPrimitive(content))
   }
 }

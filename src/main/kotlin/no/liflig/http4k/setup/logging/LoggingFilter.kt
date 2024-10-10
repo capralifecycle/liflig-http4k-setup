@@ -3,8 +3,12 @@ package no.liflig.http4k.setup.logging
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import net.logstash.logback.marker.Markers
 import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.errorhandling.ErrorLog
@@ -12,6 +16,7 @@ import no.liflig.http4k.setup.excludeRequestBodyFromLogLens
 import no.liflig.http4k.setup.excludeResponseBodyFromLogLens
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
+import no.liflig.http4k.setup.requestJsonBodyLens
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Headers
@@ -121,7 +126,7 @@ class LoggingFilter<T : PrincipalLog>(
         )
       }
 
-  data class ReadBodyResult(val body: LoggedBody, val size: Long)
+  data class ReadBodyResult(val body: BodyLog, val size: Long)
 
   /**
    * See [MAX_LOGGED_BODY_SIZE].
@@ -164,16 +169,10 @@ class LoggingFilter<T : PrincipalLog>(
 
       val bodyString = httpMessage.bodyString()
 
-      if (Header.CONTENT_TYPE(httpMessage)?.value == ContentType.APPLICATION_JSON.value) {
-        try {
-          val jsonBody = Json.parseToJsonElement(bodyString)
-          return ReadBodyResult(LoggedBody(jsonBody), size = bodyString.length.toLong())
-        } catch (_: Exception) {
-          // If we fail to parse the body as JSON, fall back to
-        }
-      }
+      val jsonBody = tryGetJsonBodyForLog(httpMessage, bodyString)
+      val bodyLog = if (jsonBody != null) BodyLog(jsonBody) else BodyLog.raw(bodyString)
 
-      return ReadBodyResult(LoggedBody.raw(bodyString), size = bodyString.length.toLong())
+      return ReadBodyResult(bodyLog, size = bodyString.length.toLong())
     } catch (e: Exception) {
       // We don't want to fail the request just because we failed to read the body for logs. So we
       // just log the exception here and return null for the body.
@@ -220,7 +219,7 @@ class LoggingFilter<T : PrincipalLog>(
     /**
      * When a request/response body exceeds [MAX_LOGGED_BODY_SIZE], this string is logged instead.
      */
-    internal val BODY_TOO_LONG_MESSAGE = LoggedBody.raw("<EXCEEDS MAX LOG SIZE>")
+    internal val BODY_TOO_LONG_MESSAGE = BodyLog.raw("<EXCEEDS MAX LOG SIZE>")
 
     private val logger = LoggerFactory.getLogger(LoggingFilter::class.java)
 
@@ -312,4 +311,56 @@ class LoggingFilter<T : PrincipalLog>(
       }
     }
   }
+}
+
+private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): JsonElement? {
+  return when {
+    // If Content-Type is not application/json, then this is not a JSON body
+    Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value -> null
+    /**
+     * We only want to include the body string as raw JSON if we trust the body (see
+     * [no.liflig.http4k.setup.bodyIsValidJson]). In addition, the body can't include newlines, as
+     * that makes CloudWatch interpret the body as multiple different log messages (newlines are
+     * used to separate log entries).
+     */
+    (httpMessage is Request && !requestJsonBodyLens(httpMessage)) ||
+        bodyString.containsUnescapedOrUnquotedNewlines() -> {
+      try {
+        return Json.parseToJsonElement(bodyString)
+      } catch (_: Exception) {
+        return null
+      }
+    }
+
+    // JsonUnquotedLiteral throws if given "null", so we have to check that here first
+    bodyString == "null" -> JsonNull
+    else -> {
+      @OptIn(ExperimentalSerializationApi::class) JsonUnquotedLiteral(bodyString)
+    }
+  }
+}
+
+private fun String.containsUnescapedOrUnquotedNewlines(): Boolean {
+  var insideQuote = false
+
+  for ((index, char) in this.withIndex()) {
+    when (char) {
+      '"' -> {
+        insideQuote = !insideQuote
+      }
+      '\n' -> {
+        if (!insideQuote) {
+          return true
+        }
+        if (index == 0) {
+          return true
+        }
+        if (this[index - 1] != '\\') {
+          return true
+        }
+      }
+    }
+  }
+
+  return false
 }

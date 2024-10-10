@@ -125,7 +125,7 @@ fun <T> createJsonBodyLens(
  * can use in our LoggingFilter to know that we don't have to re-parse the body.
  */
 fun Request.bodyIsValidJson() {
-  this.with(requestBodyIsValidJson.of(true))
+  this.with(requestJsonBodyLens.of(true))
 }
 
-internal val requestBodyIsValidJson = RequestContextKey.defaulted(contexts, false)
+internal val requestJsonBodyLens = RequestContextKey.defaulted(contexts, false)
