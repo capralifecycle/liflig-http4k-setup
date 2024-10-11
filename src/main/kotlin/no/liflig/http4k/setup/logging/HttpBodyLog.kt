@@ -40,24 +40,6 @@ value class HttpBodyLog(val content: JsonElement) {
     fun from(httpMessage: HttpMessage): HttpBodyLogWithSize {
       var bodySize: Long? = null
       try {
-        /**
-         * body.length is set based on the Content-Length header from the request:
-         * https://github.com/http4k/http4k/blob/006bda6ac59b285e7bbb08a1d86fe60e2dbccb6a/http4k-server/jetty/src/main/kotlin/org/http4k/server/Http4kJettyHttpHandler.kt#L32
-         *
-         * This means we can't trust it: a malicious actor could set Content-Length that is
-         * completely different from the actual length of the body. So naively reading the body
-         * based on this could expose us to denial-of-service attacks.
-         *
-         * However, if we do get a Content-Length that says the body is larger than
-         * [MAX_LOGGED_BODY_SIZE], we can use that to avoid realizing the body stream below
-         * (`httpMessage.body.payload` realizes the underlying stream, reading the whole body - we
-         * want to avoid that if we can).
-         */
-        bodySize = httpMessage.body.length
-        if (bodySize != null && bodySize > MAX_LOGGED_BODY_SIZE) {
-          return HttpBodyLogWithSize(truncateBody(httpMessage.body), size = bodySize)
-        }
-
         bodySize = httpMessage.body.payload.limit().toLong()
         if (bodySize > MAX_LOGGED_BODY_SIZE) {
           return HttpBodyLogWithSize(truncateBody(httpMessage.body), size = bodySize)
@@ -192,6 +174,7 @@ private fun String.containsUnescapedOrUnquotedNewlines(): Boolean {
       '"' -> {
         insideQuote = !insideQuote
       }
+
       '\n' -> {
         if (!insideQuote) {
           return true
