@@ -1,5 +1,6 @@
 package no.liflig.http4k.setup.errorhandling
 
+import no.liflig.http4k.setup.JsonBodyLensFailure
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import org.http4k.contract.ErrorResponseRenderer
 import org.http4k.core.Request
@@ -26,15 +27,17 @@ class ContractLensErrorResponseRenderer(
     private val delegate: ErrorResponseRenderer,
 ) : ErrorResponseRenderer {
   override fun badRequest(lensFailure: LensFailure): Response {
-    val target = lensFailure.target
-    check(target is Request)
+    val request = lensFailure.target
+    check(request is Request)
 
-    // RequestContext is bound to the Request object.
-    target.with(errorLogLens of ErrorLog(lensFailure))
+    // If the LensFailure was a JsonBodyLensFailure from createJsonBodyLens, then we don't want
+    // the redundant wrapper exception
+    val loggedException = (lensFailure.cause as? JsonBodyLensFailure)?.cause ?: lensFailure
+    request.with(errorLogLens of ErrorLog(loggedException))
 
     // Reset any normalized status in case it is set earlier.
     // RequestContext is bound to the Request object.
-    target.with(normalizedStatusLens of null)
+    request.with(normalizedStatusLens of null)
 
     return delegate.badRequest(lensFailure)
   }

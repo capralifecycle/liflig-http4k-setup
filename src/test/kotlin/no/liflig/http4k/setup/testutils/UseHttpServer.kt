@@ -10,14 +10,14 @@ import org.http4k.core.then
 import org.http4k.server.Jetty
 import org.http4k.server.asServer
 
-fun useHttpServer(
-    httpHandler: HttpHandler,
-    logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit =
+inline fun <ReturnT> useHttpServer(
+    noinline httpHandler: HttpHandler,
+    noinline logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit =
         LoggingFilter.createLogHandler(),
     logHttpBody: Boolean = true,
     port: Int = 8080,
-    block: (ServerTestUtils) -> Unit
-) {
+    block: (ServerTestUtils) -> ReturnT
+): ReturnT {
   val (coreFilters, _) =
       LifligBasicApiSetup(
               logHandler = logHandler,
@@ -37,7 +37,7 @@ fun useHttpServer(
             baseUrl = "http://localhost:${port}",
         )
 
-    block(testUtils)
+    return block(testUtils)
   }
 }
 
