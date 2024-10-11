@@ -84,11 +84,11 @@ class JsonBodyLensTest {
   }
 
   @Test
-  fun `custom errorResponseDetails are included on HTTP response`() {
+  fun `custom errorResponseDetail is included on HTTP response`() {
     val bodyLens =
         createJsonBodyLens(
             ExampleDto.serializer(),
-            errorResponseDetails = "Refer to the API specification for the correct format",
+            errorResponseDetail = "Refer to the API specification for the correct format",
         )
 
     val (response, _) = getServerErrorResponse(bodyLens)
@@ -118,11 +118,11 @@ class JsonBodyLensTest {
   }
 
   @Test
-  fun `errorResponseDetails with includeExceptionMessageInErrorResponse creates combined detail message`() {
+  fun `errorResponseDetail with includeExceptionMessageInErrorResponse creates combined detail message`() {
     val bodyLens =
         createJsonBodyLens(
             ExampleDto.serializer(),
-            errorResponseDetails = "Invalid example data",
+            errorResponseDetail = "Invalid example data",
             includeExceptionMessageInErrorResponse = true,
         )
 

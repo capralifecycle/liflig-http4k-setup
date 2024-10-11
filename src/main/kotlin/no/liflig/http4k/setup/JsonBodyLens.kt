@@ -52,7 +52,7 @@ private val httpBodyJson = Json {
  *   which maps it to a 400 Bad Request response. The default error message is quite generic, so you
  *   can pass a custom one here to provide more info to the user (the message will be in the `title`
  *   field of the [ErrorResponseBody][no.liflig.http4k.setup.errorhandling.ErrorResponseBody]).
- * @param errorResponseDetails See [errorResponse]. This optional parameter sets the `detail` field
+ * @param errorResponseDetail See [errorResponse]. This optional parameter sets the `detail` field
  *   on the [ErrorResponseBody][no.liflig.http4k.setup.errorhandling.ErrorResponseBody] if parsing
  *   fails.
  * @param includeExceptionMessageInErrorResponse See [errorResponse]. Enable this optional parameter
@@ -61,7 +61,7 @@ private val httpBodyJson = Json {
  *   This exception message can provide useful context to the user about why the request failed, but
  *   we do not expose it by default.
  *
- *   If combined with [errorResponseDetails], the exception message will be in parentheses after the
+ *   If combined with [errorResponseDetail], the exception message will be in parentheses after the
  *   detail message.
  *
  * @param jsonInstance The [kotlinx.serialization.json.Json] instance to use for serialization.
@@ -70,7 +70,7 @@ private val httpBodyJson = Json {
 fun <T> createJsonBodyLens(
     serializer: KSerializer<T>,
     errorResponse: String = "Failed to parse request",
-    errorResponseDetails: String? = null,
+    errorResponseDetail: String? = null,
     includeExceptionMessageInErrorResponse: Boolean = false,
     jsonInstance: Json = httpBodyJson,
 ): BiDiBodyLens<T> =
@@ -94,7 +94,7 @@ fun <T> createJsonBodyLens(
                         cause =
                             JsonBodyLensFailure(
                                 errorResponse,
-                                errorResponseDetails,
+                                errorResponseDetail,
                                 includeExceptionMessageInErrorResponse,
                                 cause = e,
                             ),
@@ -120,20 +120,20 @@ fun <T> createJsonBodyLens(
 
 internal class JsonBodyLensFailure(
     val errorResponse: String,
-    errorResponseDetails: String?,
+    errorResponseDetail: String?,
     includeExceptionMessageInErrorResponse: Boolean,
     override val cause: Exception,
 ) : Exception() {
   override val message =
-      errorResponse + (if (errorResponseDetails != null) "(${errorResponseDetails})" else "")
+      errorResponse + (if (errorResponseDetail != null) "(${errorResponseDetail})" else "")
 
   val responseDetail: String? =
       when {
-        errorResponseDetails != null -> {
+        errorResponseDetail != null -> {
           if (includeExceptionMessageInErrorResponse && cause.message != null) {
-            "${errorResponseDetails} (${cause.message})"
+            "${errorResponseDetail} (${cause.message})"
           } else {
-            errorResponseDetails
+            errorResponseDetail
           }
         }
         includeExceptionMessageInErrorResponse -> cause.message
