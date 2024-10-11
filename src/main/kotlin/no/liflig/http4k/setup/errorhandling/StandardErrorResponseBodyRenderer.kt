@@ -54,7 +54,7 @@ object StandardErrorResponseBodyRenderer : ErrorResponseRenderer {
                   ErrorResponseBody(
                       "No route found on this path. Have you used the correct HTTP verb?",
                       detail = null,
-                      status = Status.BAD_REQUEST.code,
+                      status = Status.NOT_FOUND.code,
                       instance = "unknown",
                   ),
           )
