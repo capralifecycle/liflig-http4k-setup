@@ -99,6 +99,43 @@ value class HttpBodyLog(val content: JsonElement) {
       return raw(truncateOutput.toString())
     }
 
+    private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): JsonElement? {
+      /** See [no.liflig.http4k.setup.markBodyAsValidJson]. */
+      var trustedBody = false
+      var bodyIsValidJson = false
+      if (httpMessage is Response) {
+        trustedBody = true
+      } else if (httpMessage is Request && requestBodyIsValidJson(httpMessage)) {
+        trustedBody = true
+        bodyIsValidJson = true
+      }
+
+      return when {
+        // If Content-Type is not application/json, we can't assume that this is a JSON body -
+        // unless it
+        // has already been validated as JSON.
+        (Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value &&
+            !bodyIsValidJson) -> null
+        // We only want to include the body string as raw JSON if we trust the body. In addition,
+        // the
+        // body can't include unescaped newlines, as that makes CloudWatch interpret the body as
+        // multiple different log messages (newlines are used to separate log entries).
+        !trustedBody || bodyString.containsUnescapedOrUnquotedNewlines() -> {
+          try {
+            return Json.parseToJsonElement(bodyString)
+          } catch (_: Exception) {
+            return null
+          }
+        }
+
+        // JsonUnquotedLiteral throws if given "null", so we have to check that here first
+        bodyString == "null" -> JsonNull
+        else -> {
+          @OptIn(ExperimentalSerializationApi::class) (JsonUnquotedLiteral(bodyString))
+        }
+      }
+    }
+
     private val log = KotlinLogging.logger {}
 
     /**
@@ -130,41 +167,6 @@ value class HttpBodyLog(val content: JsonElement) {
 }
 
 data class HttpBodyLogWithSize(val body: HttpBodyLog, val size: Long?)
-
-private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): JsonElement? {
-  /** See [no.liflig.http4k.setup.markBodyAsValidJson]. */
-  var trustedBody = false
-  var bodyIsValidJson = false
-  if (httpMessage is Response) {
-    trustedBody = true
-  } else if (httpMessage is Request && requestBodyIsValidJson(httpMessage)) {
-    trustedBody = true
-    bodyIsValidJson = true
-  }
-
-  return when {
-    // If Content-Type is not application/json, we can't assume that this is a JSON body - unless it
-    // has already been validated as JSON.
-    (Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value &&
-        !bodyIsValidJson) -> null
-    // We only want to include the body string as raw JSON if we trust the body. In addition, the
-    // body can't include unescaped newlines, as that makes CloudWatch interpret the body as
-    // multiple different log messages (newlines are used to separate log entries).
-    !trustedBody || bodyString.containsUnescapedOrUnquotedNewlines() -> {
-      try {
-        return Json.parseToJsonElement(bodyString)
-      } catch (_: Exception) {
-        return null
-      }
-    }
-
-    // JsonUnquotedLiteral throws if given "null", so we have to check that here first
-    bodyString == "null" -> JsonNull
-    else -> {
-      @OptIn(ExperimentalSerializationApi::class) (JsonUnquotedLiteral(bodyString))
-    }
-  }
-}
 
 private fun String.containsUnescapedOrUnquotedNewlines(): Boolean {
   var insideQuote = false
