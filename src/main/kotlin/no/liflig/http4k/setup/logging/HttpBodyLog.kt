@@ -1,6 +1,7 @@
 package no.liflig.http4k.setup.logging
 
 import java.nio.CharBuffer
+import java.nio.charset.CoderResult
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -33,6 +34,8 @@ value class HttpBodyLog(val content: JsonElement) {
   override fun toString() = content.toString()
 
   companion object {
+    internal fun raw(content: String) = HttpBodyLog(JsonPrimitive(content))
+
     /**
      * Extracts the body from the given request/response for logging. Ensures that the size of the
      * body does not exceed [MAX_LOGGED_BODY_SIZE], so it does not break CloudWatch.
@@ -61,10 +64,6 @@ value class HttpBodyLog(val content: JsonElement) {
     }
 
     private fun truncateBody(body: Body): HttpBodyLog {
-      if (body.payload.limit() <= MAX_LOGGED_BODY_SIZE) {
-        return raw(StandardCharsets.UTF_8.decode(body.payload).toString())
-      }
-
       /**
        * Since we're dealing with large bodies here, we want to copy as little as possible. To
        * achieve that, we:
@@ -84,7 +83,9 @@ value class HttpBodyLog(val content: JsonElement) {
               .onMalformedInput(CodingErrorAction.REPLACE)
               .onUnmappableCharacter(CodingErrorAction.REPLACE)
               .decode(truncateInput, truncateOutput, false)
-      if (result.isError || result.isOverflow || result.isMalformed || result.isUnmappable) {
+      // We expect the result to be UNDERFLOW, since we reserved extra space for
+      // TRUNCATED_BODY_SUFFIX. Any other result is likely an error.
+      if (result != CoderResult.UNDERFLOW) {
         // Will be caught and logged by HttpBodyLog.from
         throw IllegalStateException("Failed to decode truncated body (reason: ${result})")
       }
@@ -100,8 +101,6 @@ value class HttpBodyLog(val content: JsonElement) {
 
     private val log = KotlinLogging.logger {}
 
-    internal fun raw(content: String) = HttpBodyLog(JsonPrimitive(content))
-
     /**
      * The maximum size of a CloudWatch log event is 256 KiB.
      *
@@ -113,7 +112,8 @@ value class HttpBodyLog(val content: JsonElement) {
     internal const val MAX_LOGGED_BODY_SIZE = 50 * 1024
 
     /**
-     * When a request/response body exceeds [MAX_LOGGED_BODY_SIZE], this string is logged instead.
+     * When a request/response body exceeds [MAX_LOGGED_BODY_SIZE], it is truncated to avoid
+     * breaking CloudWatch, and this suffix is added (see [truncateBody]).
      */
     internal const val TRUNCATED_BODY_SUFFIX = "<TRUNCATED>"
 
@@ -174,7 +174,6 @@ private fun String.containsUnescapedOrUnquotedNewlines(): Boolean {
       '"' -> {
         insideQuote = !insideQuote
       }
-
       '\n' -> {
         if (!insideQuote) {
           return true
