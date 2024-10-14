@@ -69,7 +69,7 @@ private val httpBodyJson = Json {
  */
 fun <T> createJsonBodyLens(
     serializer: KSerializer<T>,
-    errorResponse: String = "Failed to parse request",
+    errorResponse: String = "Failed to parse request body",
     errorResponseDetail: String? = null,
     includeExceptionMessageInErrorResponse: Boolean = false,
     jsonInstance: Json = httpBodyJson,

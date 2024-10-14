@@ -93,7 +93,7 @@ class JsonBodyLensTest {
 
     val (response, _) = getServerErrorResponse(bodyLens)
 
-    response.title shouldBe "Failed to parse request" // Default error title
+    response.title shouldBe "Failed to parse request body" // Default error response
     response.detail shouldBe "Refer to the API specification for the correct format"
   }
 
@@ -132,7 +132,7 @@ class JsonBodyLensTest {
     log.throwable.shouldBeInstanceOf<MissingFieldException>()
     log.throwable.message.shouldNotBeNull()
 
-    response.title shouldBe "Failed to parse request" // Default error title
+    response.title shouldBe "Failed to parse request body" // Default error response
     response.detail shouldBe "Invalid example data (${log.throwable.message})"
   }
 
