@@ -1,11 +1,13 @@
+@file:Suppress("unused")
+
 package no.liflig.http4k.setup.errorhandling
 
 import kotlinx.serialization.Serializable
-import org.http4k.core.Body
+import kotlinx.serialization.json.Json
+import no.liflig.http4k.setup.createJsonBodyLens
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.with
-import org.http4k.format.KotlinxSerialization.auto
 
 /**
  * Standard error response body used for internal APIs for Liflig projects. Uses the
@@ -23,10 +25,20 @@ data class ErrorResponseBody(
      * A URI reference that identifies the specific occurrence of the problem. Usually an API
      * request (relative) path. E.g. "/api/reservations/1234"
      */
-    val instance: String
+    val instance: String,
+    /**
+     * An optional URI reference that identifies the problem type. The specification suggests that
+     * it should link to human-readable documentation for the problem type (e.g. an HTML page).
+     */
+    val type: String? = null,
 ) {
   companion object {
-    val bodyLens = Body.auto<ErrorResponseBody>().toLens()
+    val bodyLens =
+        createJsonBodyLens(
+            serializer(),
+            errorResponse = "Failed to parse error response",
+            jsonInstance = errorResponseBodyJson,
+        )
   }
 
   /**
@@ -38,4 +50,15 @@ data class ErrorResponseBody(
     val status = Status.fromCode(this.status) ?: Status.INTERNAL_SERVER_ERROR
     return Response(status).with(bodyLens of this)
   }
+}
+
+/**
+ * We use a custom Json instance here with `explicitNulls = false`, since we don't want to include
+ * `"detail": null` and `"type": null` on every error response that don't have these (which are most
+ * responses).
+ */
+internal val errorResponseBodyJson = Json {
+  encodeDefaults = true
+  ignoreUnknownKeys = true
+  explicitNulls = false
 }

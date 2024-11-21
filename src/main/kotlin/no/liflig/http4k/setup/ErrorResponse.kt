@@ -19,6 +19,11 @@ fun Request.attachThrowableToLog(throwable: Throwable) {
  * Returns a standardized error response following the
  * [Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) specification.
  *
+ * @param title A short, human-readable summary of the problem type.
+ * @param detail A human-readable explanation specific to this occurrence of the problem.
+ * @param type An optional URI reference that identifies the problem type. The specification
+ *   encourages that it should link to human-readable documentation for the problem type (e.g. an
+ *   HTML page).
  * @param cause Attaches the exception to the request log, if given. You should always set this if
  *   the error response was due to an exception.
  */
@@ -27,7 +32,8 @@ fun errorResponse(
     status: Status,
     title: String,
     detail: String? = null,
-    cause: Throwable? = null
+    type: String? = null,
+    cause: Throwable? = null,
 ): Response {
   if (cause != null) {
     request.attachThrowableToLog(cause)
@@ -40,6 +46,7 @@ fun errorResponse(
                   detail = detail,
                   status = status.code,
                   instance = request.uri.path,
+                  type = type,
               ),
       )
 }

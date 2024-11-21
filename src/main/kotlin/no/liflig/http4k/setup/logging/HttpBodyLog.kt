@@ -117,8 +117,7 @@ value class HttpBodyLog(val content: JsonElement) {
         (Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value &&
             !bodyIsValidJson) -> null
         // We only want to include the body string as raw JSON if we trust the body. In addition,
-        // the
-        // body can't include unescaped newlines, as that makes CloudWatch interpret the body as
+        // the body can't include unescaped newlines, as that makes CloudWatch interpret the body as
         // multiple different log messages (newlines are used to separate log entries).
         !trustedBody || bodyString.containsUnescapedOrUnquotedNewlines() -> {
           try {
