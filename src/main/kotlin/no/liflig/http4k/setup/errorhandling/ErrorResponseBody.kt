@@ -18,7 +18,7 @@ data class ErrorResponseBody(
     /** A short, human-readable summary of the problem type. */
     val title: String,
     /** A human-readable explanation specific to this occurrence of the problem. */
-    val detail: String?,
+    val detail: String? = null,
     /** Status code returned in response. Kept here to have all error context available in body. */
     val status: Int,
     /**
