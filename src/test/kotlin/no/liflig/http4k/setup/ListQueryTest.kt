@@ -69,4 +69,29 @@ class ListQueryTest {
     val responseBody = response.json<List<Id>>()
     responseBody shouldBe listOf(Id("1"), Id("2"))
   }
+
+  private enum class TestEnum {
+    VALUE_1,
+    VALUE_2,
+    @Suppress("unused") VALUE_3,
+  }
+
+  @Test
+  fun `enum list query`() {
+    val enumQuery = ListQuery.enum<TestEnum>().required("query")
+
+    val handler =
+        ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
+          val enumValues = enumQuery(request)
+          Response(Status.OK).json(enumValues)
+        }
+
+    var request = Request(Method.GET, "/some/url")
+    request = enumQuery(listOf(TestEnum.VALUE_1, TestEnum.VALUE_2), request)
+
+    val response = handler(request)
+    response.status shouldBe Status.OK
+    val responseBody = response.json<List<TestEnum>>()
+    responseBody shouldBe listOf(TestEnum.VALUE_1, TestEnum.VALUE_2)
+  }
 }

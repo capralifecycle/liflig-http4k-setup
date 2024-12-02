@@ -64,4 +64,13 @@ object ListQuery :
         { outgoingValues -> outgoingValues.map(outgoing) },
     )
   }
+
+  /** Works like http4k's `Query.enum`, but for lists of enum query parameters. */
+  inline fun <reified EnumT : Enum<EnumT>> enum(): BiDiLensSpec<Request, List<EnumT>> {
+    return this.mapWithNewMeta(
+        nextIn = { params -> params.map { param -> enumValueOf<EnumT>(param) } },
+        nextOut = { enumValues -> enumValues.map { it.name } },
+        paramMeta = ParamMeta.ArrayParam(ParamMeta.EnumParam(EnumT::class)),
+    )
+  }
 }
