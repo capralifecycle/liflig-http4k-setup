@@ -27,15 +27,27 @@ object ListQuery :
         location = "query",
         ParamMeta.ArrayParam(ParamMeta.StringParam),
         LensGet { paramName, request ->
-          var params = request.queries(paramName).filterNotNull()
-          // If we receive a single query param, we parse it as a comma-separated list. But if we
-          // receive multiple, we assume that clients don't mix multiple params with comma-separated
-          // values, i.e. `queryParam=value1&queryParam=value2,value3`. In this case, the comma in
-          // the second param is more likely part of the value, so we don't split it.
-          if (params.size == 1) {
-            params = params.first().split(",")
+          val params = request.queries(paramName).filterNotNull()
+          when (params.size) {
+            // If we receive no query params, return empty list to let `required`/`optional` handle
+            // this case
+            0 -> emptyList()
+            // If we receive a single query param, we parse it as a comma-separated list
+            1 -> {
+              val param = params.first()
+              // If the client sent a query parameter with a name but no value, i.e. '&param=', we
+              // get `params` as a list with one empty string - we treat this as an empty list.
+              if (param == "") {
+                listOf(emptyList())
+              } else {
+                listOf(param.split(","))
+              }
+            }
+            // If we receive multiple query params, we assume the client sends list query params as
+            // separate
+            // params
+            else -> listOf(params)
           }
-          listOf(params)
         },
         LensSet { paramName, params, request ->
           val requestWithoutQuery = request.removeQuery(paramName)

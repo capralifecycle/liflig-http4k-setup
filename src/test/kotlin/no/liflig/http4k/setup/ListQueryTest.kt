@@ -9,6 +9,7 @@ import org.http4k.core.RequestContexts
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.then
+import org.http4k.core.with
 import org.http4k.filter.ServerFilters
 import org.http4k.format.KotlinxSerialization.json
 import org.junit.jupiter.api.Test
@@ -61,13 +62,29 @@ class ListQueryTest {
           Response(Status.OK).json(ids)
         }
 
-    var request = Request(Method.GET, "/some/url")
-    request = idsQuery(listOf(Id("1"), Id("2")), request)
-
-    val response = handler(request)
+    val response =
+        handler(
+            Request(Method.GET, "/some/url").with(idsQuery.of(listOf(Id("1"), Id("2")))),
+        )
     response.status shouldBe Status.OK
     val responseBody = response.json<List<Id>>()
     responseBody shouldBe listOf(Id("1"), Id("2"))
+  }
+
+  @Test
+  fun `query parameter with no value is parsed as empty list`() {
+    val queryParam = ListQuery.required("param")
+
+    val handler =
+        ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
+          val values = queryParam(request)
+          Response(Status.OK).json(values)
+        }
+
+    val response = handler(Request(Method.GET, "/some/url?param="))
+    response.status shouldBe Status.OK
+    val responseBody = response.json<List<String>>()
+    responseBody shouldBe emptyList()
   }
 
   private enum class TestEnum {
@@ -86,10 +103,11 @@ class ListQueryTest {
           Response(Status.OK).json(enumValues)
         }
 
-    var request = Request(Method.GET, "/some/url")
-    request = enumQuery(listOf(TestEnum.VALUE_1, TestEnum.VALUE_2), request)
-
-    val response = handler(request)
+    val response =
+        handler(
+            Request(Method.GET, "/some/url")
+                .with(enumQuery.of(listOf(TestEnum.VALUE_1, TestEnum.VALUE_2))),
+        )
     response.status shouldBe Status.OK
     val responseBody = response.json<List<TestEnum>>()
     responseBody shouldBe listOf(TestEnum.VALUE_1, TestEnum.VALUE_2)
