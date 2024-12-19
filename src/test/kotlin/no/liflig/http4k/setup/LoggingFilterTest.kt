@@ -43,7 +43,6 @@ import org.http4k.filter.ServerFilters
 import org.http4k.lens.BiDiBodyLens
 import org.http4k.lens.RequestContextKey
 import org.http4k.lens.string
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 // Note: slf4j will only write MDC values if using specific backends.
@@ -340,8 +339,10 @@ response"}"""
         object : Body {
           override val payload: ByteBuffer
             get() = throw Exception("Expected failure")
+
           override val stream: InputStream
             get() = throw Exception("Expected failure")
+
           override val length: Long?
             get() = null
 
@@ -354,7 +355,6 @@ response"}"""
   }
 
   @Test
-  @Disabled("Until fixed")
   fun `log handler properly logs as json in combination with logback setup`() {
     val handler = LoggingFilter.createLogHandler(CustomPrincipalLog.serializer())
 
@@ -375,7 +375,6 @@ response"}"""
   }
 
   @Test
-  @Disabled("Until fixed")
   fun `log handler uses expected logger`() {
     val handler = LoggingFilter.createLogHandler(CustomPrincipalLog.serializer())
 
@@ -392,7 +391,7 @@ response"}"""
     // using this logger name, so we don't want to change it
     // unintentionally.
     json.jsonObject["logger_name"]!!.jsonPrimitive.contentOrNull shouldBe
-        "no.liflig.logging.http4k.LoggingFilter"
+        "no.liflig.http4k.setup.logging.LoggingFilter"
   }
 
   private fun getServerLog(
