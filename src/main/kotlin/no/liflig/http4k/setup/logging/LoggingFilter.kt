@@ -4,14 +4,14 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.json.Json
-import net.logstash.logback.marker.Markers
 import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.errorhandling.ErrorLog
 import no.liflig.http4k.setup.excludeRequestBodyFromLogLens
 import no.liflig.http4k.setup.excludeResponseBodyFromLogLens
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
+import no.liflig.logging.LogLevel
+import no.liflig.logging.Logger
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Headers
@@ -21,10 +21,6 @@ import org.http4k.core.Request
 import org.http4k.lens.BiDiLens
 import org.http4k.lens.Header
 import org.http4k.lens.RequestContextLens
-import org.slf4j.LoggerFactory
-import org.slf4j.Marker
-import org.slf4j.event.Level
-import org.slf4j.helpers.NOPLogger
 
 /** Filter to handle request logging. */
 class LoggingFilter<T : PrincipalLog>(
@@ -34,7 +30,11 @@ class LoggingFilter<T : PrincipalLog>(
     private val errorLogLens: BiDiLens<Request, ErrorLog?>,
     private val normalizedStatusLens: BiDiLens<Request, NormalizedStatus?>,
     private val requestIdChainLens: RequestContextLens<List<UUID>>,
-    /** A callback to pass the final log entry to a logger, like SLF4J. */
+    /**
+     * A callback to pass the final log entry to a logger, like liflig-logging.
+     *
+     * A default implementation is provided in [LoggingFilter.logHandler].
+     */
     private val logHandler: (RequestResponseLog<T>) -> Unit,
     /**
      * `true` to log both request and response body. Only logs white-listed content types in
@@ -146,26 +146,16 @@ class LoggingFilter<T : PrincipalLog>(
   }
 
   companion object {
-    // We use an SLF4J logger instead of KotlinLogging here, as KotlinLogging messed up the file
-    // location when using atLevel below
-    private val logger = LoggerFactory.getLogger(LoggingFilter::class.java)
-
-    init {
-      if (logger is NOPLogger) throw RuntimeException("Logging is not configured!")
-    }
-
-    private val json = Json {
-      encodeDefaults = true
-      ignoreUnknownKeys = true
-    }
+    private val log = Logger {}
 
     /**
-     * Log handler that will log information from the request using `INFO` level under the
-     * requestInfo property. Errors are logged with `WARN` level, except `500` responses, which are
-     * logged at `ERROR` level.
+     * Log handler that logs request/response data in a "requestInfo" log field. If the HTTP handler
+     * threw an exception, that is also attached to the log.
      *
-     * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder,
-     * since it uses special markers that it will parse.
+     * The log uses different log levels depending on the response status code:
+     * - 200..299: INFO
+     * - 500: ERROR
+     * - else: WARN
      *
      * Uses default [LifligUserPrincipalLog] serializer. Either because you actually want to use
      * this principalLog class for logging or because you do not have a concept principal and do not
@@ -179,12 +169,13 @@ class LoggingFilter<T : PrincipalLog>(
     }
 
     /**
-     * Log handler that will log information from the request using `INFO` level under the
-     * requestInfo property. Errors are logged with `WARN` level, except `500` responses, which are
-     * logged at `ERROR` level.
+     * Returns a log handler that logs request/response data in a "requestInfo" log field. If the
+     * HTTP handler threw an exception, that is also attached to the log.
      *
-     * This relies on using the "net.logstash.logback.encoder.LogstashEncoder" Logback encoder,
-     * since it uses special markers that it will parse.
+     * The log uses different log levels depending on the response status code:
+     * - 200..299: INFO
+     * - 500: ERROR
+     * - else: WARN
      */
     fun <T : PrincipalLog> createLogHandler(
         /**
@@ -206,35 +197,34 @@ class LoggingFilter<T : PrincipalLog>(
       val request = entry.request
       val response = entry.response
 
-      val logMarker: Marker by lazy {
-        Markers.appendRaw(
-            "requestInfo",
-            json.encodeToString(RequestResponseLog.serializer(principalLogSerializer), entry),
-        )
+      // Suppress successful health checks
+      if (suppressSuccessfulHealthChecks &&
+          request.uri == "/health" &&
+          response.statusCode == 200 &&
+          entry.throwable == null) {
+        return
       }
 
-      when {
-        suppressSuccessfulHealthChecks &&
-            request.uri == "/health" &&
-            response.statusCode == 200 &&
-            entry.throwable == null -> {
-          // NoOp
+      val logLevel =
+          when (response.statusCode) {
+            in 200..299 -> LogLevel.INFO
+            500 -> LogLevel.ERROR
+            else -> LogLevel.WARN
+          }
+
+      log.at(logLevel) {
+        cause = entry.throwable
+        addField(
+            "requestInfo",
+            entry,
+            serializer = RequestResponseLog.serializer(principalLogSerializer),
+        )
+        when (logLevel) {
+          LogLevel.INFO ->
+              "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
+          else ->
+              "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
         }
-        entry.throwable != null -> {
-          val level = if (entry.response.statusCode == 500) Level.ERROR else Level.WARN
-          logger
-              .atLevel(level)
-              .addMarker(logMarker)
-              .setCause(entry.throwable)
-              .log(
-                  "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
-              )
-        }
-        else ->
-            logger.info(
-                logMarker,
-                "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}",
-            )
       }
     }
   }

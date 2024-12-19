@@ -1,6 +1,6 @@
 package no.liflig.http4k.setup.errorhandling
 
-import mu.KotlinLogging
+import no.liflig.logging.Logger
 import org.http4k.core.Filter
 import org.http4k.core.HttpHandler
 import org.http4k.core.Response
@@ -22,13 +22,16 @@ class LastResortCatchAllThrowablesFilter : Filter {
       try {
         nextHandler(request)
       } catch (e: Throwable) {
-        log.error(e) { "Unhandled exception caught" }
+        log.error {
+          cause = e
+          "Unhandled exception caught"
+        }
         Response(Status.INTERNAL_SERVER_ERROR).body("Something went wrong")
       }
     }
   }
 
   companion object {
-    private val log = KotlinLogging.logger {}
+    private val log = Logger {}
   }
 }

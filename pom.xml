@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -10,6 +10,7 @@
     <version>3.20241213.031014</version>
   </parent>
 
+  <!--suppress MavenRedundantGroupId -->
   <groupId>no.liflig</groupId>
   <artifactId>liflig-http4k-setup</artifactId>
   <version>${revision}</version>
@@ -21,11 +22,10 @@
     <major-version>1</major-version>
     <revision>${major-version}.local-SNAPSHOT</revision>
 
-    <kotlin-logging-jvm.version>3.0.5</kotlin-logging-jvm.version>
-    <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
-    <kotlinx-serialization.version>1.7.3</kotlinx-serialization.version>
-    <slf4j-api.version>2.0.16</slf4j-api.version>
     <http4k.version>5.37.1.1</http4k.version>
+    <kotlinx-serialization.version>1.7.3</kotlinx-serialization.version>
+    <liflig-logging.version>2.20241219.154120</liflig-logging.version>
+    <slf4j.version>2.0.16</slf4j.version>
 
     <!-- Testing-->
     <junit-bom.version>5.11.3</junit-bom.version>
@@ -35,7 +35,8 @@
   </properties>
 
   <scm>
-    <developerConnection>scm:git:https://github.com/capralifecycle/liflig-http4k-setup.git</developerConnection>
+    <developerConnection>scm:git:https://github.com/capralifecycle/liflig-http4k-setup.git
+    </developerConnection>
     <connection>scm:git:https://github.com/capralifecycle/liflig-http4k-setup.git</connection>
     <url>https://github.com/capralifecycle/liflig-http4k-setup</url>
     <tag>HEAD</tag>
@@ -65,11 +66,6 @@
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>${slf4j-api.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
         <version>${junit-bom.version}</version>
@@ -80,26 +76,6 @@
   </dependencyManagement>
 
   <dependencies>
-    <dependency>
-      <groupId>io.github.microutils</groupId>
-      <artifactId>kotlin-logging-jvm</artifactId>
-      <version>${kotlin-logging-jvm.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>net.logstash.logback</groupId>
-      <artifactId>logstash-logback-encoder</artifactId>
-      <version>${logstash-logback-encoder.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.jetbrains.kotlinx</groupId>
-      <artifactId>kotlinx-serialization-json</artifactId>
-      <version>${kotlinx-serialization.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>org.http4k</groupId>
       <artifactId>http4k-core</artifactId>
@@ -115,6 +91,23 @@
     <dependency>
       <groupId>org.http4k</groupId>
       <artifactId>http4k-opentelemetry</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.jetbrains.kotlinx</groupId>
+      <artifactId>kotlinx-serialization-json</artifactId>
+      <version>${kotlinx-serialization.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>no.liflig</groupId>
+      <artifactId>liflig-logging</artifactId>
+      <version>${liflig-logging.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
     </dependency>
 
     <dependency>
@@ -209,5 +202,4 @@
       </plugin>
     </plugins>
   </build>
-
 </project>
