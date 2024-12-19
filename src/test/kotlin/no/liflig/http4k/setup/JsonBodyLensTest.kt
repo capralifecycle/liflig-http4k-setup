@@ -97,6 +97,7 @@ class JsonBodyLensTest {
     response.detail shouldBe "Refer to the API specification for the correct format"
   }
 
+  @OptIn(ExperimentalSerializationApi::class)
   @Test
   fun `includeExceptionMessageInErrorResponse includes exception message`() {
     val bodyLens =
@@ -109,14 +110,14 @@ class JsonBodyLensTest {
     val (response, log) = getServerErrorResponse(bodyLens)
 
     // Verify that we got the JSON decoding exception we expect
-    @OptIn(ExperimentalSerializationApi::class)
-    log.throwable.shouldBeInstanceOf<MissingFieldException>()
+    val exception = log.throwable.shouldBeInstanceOf<MissingFieldException>()
 
     response.title shouldBe "Failed to parse example data"
     response.detail.shouldNotBeNull()
-    response.detail shouldBe log.throwable.message
+    response.detail shouldBe exception.message
   }
 
+  @OptIn(ExperimentalSerializationApi::class)
   @Test
   fun `errorResponseDetail with includeExceptionMessageInErrorResponse creates combined detail message`() {
     val bodyLens =
@@ -128,17 +129,16 @@ class JsonBodyLensTest {
 
     val (response, log) = getServerErrorResponse(bodyLens)
 
-    @OptIn(ExperimentalSerializationApi::class)
-    log.throwable.shouldBeInstanceOf<MissingFieldException>()
-    log.throwable.message.shouldNotBeNull()
+    val exception = log.throwable.shouldBeInstanceOf<MissingFieldException>()
+    exception.message.shouldNotBeNull()
 
     response.title shouldBe "Failed to parse request body" // Default error response
-    response.detail shouldBe "Invalid example data (${log.throwable.message})"
+    response.detail shouldBe "Invalid example data (${exception.message})"
   }
 
   /**
-   * In order for the body lens to set [requestBodyIsValidJson], the request must be in the context
-   * of an actual HTTP server.
+   * In order for the body lens to set [requestBodyIsValidJsonLens], the request must be in the
+   * context of an actual HTTP server.
    */
   private fun useServerRequest(requestBody: String, block: (Request) -> Unit) {
     useHttpServer(

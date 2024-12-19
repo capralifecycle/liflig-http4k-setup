@@ -2,6 +2,7 @@ package no.liflig.http4k.setup
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
+import no.liflig.http4k.setup.utils.getFromRequestContext
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
@@ -175,7 +176,7 @@ private val jsonBodyLensMetas =
  */
 fun Request.markBodyAsValidJson() {
   try {
-    this.with(requestBodyIsValidJson.of(true))
+    this.with(requestBodyIsValidJsonLens.of(true))
   } catch (_: Exception) {
     // This can throw if there is no 'x-http4k-context' header present on the request. Since we only
     // call this as an optimization (to avoid re-parsing JSON in LoggingFilter), we never want to
@@ -184,4 +185,8 @@ fun Request.markBodyAsValidJson() {
   }
 }
 
-internal val requestBodyIsValidJson = RequestContextKey.defaulted(contexts, false)
+private val requestBodyIsValidJsonLens = RequestContextKey.defaulted(contexts, false)
+
+internal fun requestBodyIsValidJson(request: Request): Boolean {
+  return getFromRequestContext(request, requestBodyIsValidJsonLens, default = false)
+}
