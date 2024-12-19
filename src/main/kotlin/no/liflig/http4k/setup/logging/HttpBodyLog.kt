@@ -122,7 +122,7 @@ value class HttpBodyLog(val content: JsonElement) {
         // We only want to include the body string as raw JSON if we trust the body. In addition,
         // the body can't include unescaped newlines, as that makes CloudWatch interpret the body as
         // multiple different log messages (newlines are used to separate log entries).
-        !trustedBody || bodyString.containsUnescapedOrUnquotedNewlines() -> {
+        !trustedBody || bodyString.contains('\n') -> {
           try {
             return Json.parseToJsonElement(bodyString)
           } catch (_: Exception) {
@@ -169,28 +169,3 @@ value class HttpBodyLog(val content: JsonElement) {
 }
 
 data class HttpBodyLogWithSize(val body: HttpBodyLog, val size: Long?)
-
-private fun String.containsUnescapedOrUnquotedNewlines(): Boolean {
-  var insideQuote = false
-
-  for ((index, char) in this.withIndex()) {
-    when (char) {
-      '"' -> {
-        insideQuote = !insideQuote
-      }
-      '\n' -> {
-        if (!insideQuote) {
-          return true
-        }
-        if (index == 0) {
-          return true
-        }
-        if (this[index - 1] != '\\') {
-          return true
-        }
-      }
-    }
-  }
-
-  return false
-}
