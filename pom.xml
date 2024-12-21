@@ -29,7 +29,7 @@
 
     <!-- Testing-->
     <junit-bom.version>5.11.4</junit-bom.version>
-    <logback-classic.version>1.5.12</logback-classic.version>
+    <logback-classic.version>1.5.13</logback-classic.version>
     <!-- TODO: Replace with assert4j? -->
     <kotest-assertions-core-jvm.version>5.9.1</kotest-assertions-core-jvm.version>
   </properties>
