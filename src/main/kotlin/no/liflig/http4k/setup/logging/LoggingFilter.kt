@@ -11,7 +11,7 @@ import no.liflig.http4k.setup.excludeResponseBodyFromLogLens
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
 import no.liflig.logging.LogLevel
-import no.liflig.logging.Logger
+import no.liflig.logging.getLogger
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Headers
@@ -146,7 +146,7 @@ class LoggingFilter<T : PrincipalLog>(
   }
 
   companion object {
-    private val log = Logger {}
+    private val log = getLogger {}
 
     /**
      * Log handler that logs request/response data in a "requestInfo" log field. If the HTTP handler

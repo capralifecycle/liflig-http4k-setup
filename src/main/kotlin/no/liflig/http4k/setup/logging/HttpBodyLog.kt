@@ -12,7 +12,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonUnquotedLiteral
 import no.liflig.http4k.setup.requestBodyIsValidJson
-import no.liflig.logging.Logger
+import no.liflig.logging.getLogger
 import org.http4k.core.Body
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
@@ -138,7 +138,7 @@ value class HttpBodyLog(val content: JsonElement) {
       }
     }
 
-    private val log = Logger {}
+    private val log = getLogger {}
 
     /**
      * The maximum size of a CloudWatch log event is 256 KiB.

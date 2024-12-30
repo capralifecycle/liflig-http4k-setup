@@ -1,6 +1,6 @@
 package no.liflig.http4k.setup.errorhandling
 
-import no.liflig.logging.Logger
+import no.liflig.logging.getLogger
 import org.http4k.core.Filter
 import org.http4k.core.HttpHandler
 import org.http4k.core.Response
@@ -32,6 +32,6 @@ class LastResortCatchAllThrowablesFilter : Filter {
   }
 
   companion object {
-    private val log = Logger {}
+    private val log = getLogger {}
   }
 }
