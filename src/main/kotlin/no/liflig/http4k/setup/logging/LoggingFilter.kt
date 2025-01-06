@@ -214,7 +214,7 @@ class LoggingFilter<T : PrincipalLog>(
 
       log.at(logLevel) {
         cause = entry.throwable
-        addField(
+        field(
             "requestInfo",
             entry,
             serializer = RequestResponseLog.serializer(principalLogSerializer),
