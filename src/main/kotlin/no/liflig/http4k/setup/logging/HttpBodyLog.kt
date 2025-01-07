@@ -58,10 +58,7 @@ value class HttpBodyLog(val content: JsonElement) {
       } catch (e: Exception) {
         // We don't want to fail the request just because we failed to read the body for logs. So we
         // just log the exception here and return a failure message.
-        log.warn {
-          cause = e
-          "Failed to read body for request/response log"
-        }
+        log.warn(e) { "Failed to read body for request/response log" }
         return HttpBodyLogWithSize(FAILED_TO_READ_BODY_MESSAGE, size = bodySize)
       }
     }

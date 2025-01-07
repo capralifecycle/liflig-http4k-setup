@@ -22,10 +22,7 @@ class LastResortCatchAllThrowablesFilter : Filter {
       try {
         nextHandler(request)
       } catch (e: Throwable) {
-        log.error {
-          cause = e
-          "Unhandled exception caught"
-        }
+        log.error(e) { "Unhandled exception caught" }
         Response(Status.INTERNAL_SERVER_ERROR).body("Something went wrong")
       }
     }

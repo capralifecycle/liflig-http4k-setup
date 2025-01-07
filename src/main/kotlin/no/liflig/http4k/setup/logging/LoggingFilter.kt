@@ -212,8 +212,7 @@ class LoggingFilter<T : PrincipalLog>(
             else -> LogLevel.WARN
           }
 
-      log.at(logLevel) {
-        cause = entry.throwable
+      log.at(logLevel, cause = entry.throwable) {
         field(
             "requestInfo",
             entry,
