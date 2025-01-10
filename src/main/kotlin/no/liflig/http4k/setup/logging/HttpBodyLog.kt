@@ -4,15 +4,12 @@ import java.nio.CharBuffer
 import java.nio.charset.CoderResult
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.JsonUnquotedLiteral
 import no.liflig.http4k.setup.requestBodyIsValidJson
 import no.liflig.logging.getLogger
+import no.liflig.logging.rawJson
 import org.http4k.core.Body
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
@@ -100,39 +97,30 @@ value class HttpBodyLog(val content: JsonElement) {
     }
 
     private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): JsonElement? {
-      /** See [no.liflig.http4k.setup.markBodyAsValidJson]. */
-      var trustedBody = false
-      var bodyIsValidJson = false
+      /**
+       * If this is a request and the body has been parsed as JSON, then we know it's valid JSON.
+       *
+       * See [no.liflig.http4k.setup.markBodyAsValidJson].
+       */
+      if (httpMessage is Request && requestBodyIsValidJson(httpMessage)) {
+        return rawJson(bodyString, validJson = true)
+      }
+
+      // If Content-Type is not JSON (and we have not already parsed it as JSON), then we don't try
+      // to parse it here
+      if (Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value) {
+        return null
+      }
+
+      // If this is a response (from our server) and the Content-Type is JSON, we assume that we've
+      // sent valid JSON
       if (httpMessage is Response) {
-        trustedBody = true
-      } else if (httpMessage is Request && requestBodyIsValidJson(httpMessage)) {
-        trustedBody = true
-        bodyIsValidJson = true
+        return rawJson(bodyString, validJson = true)
       }
 
-      return when {
-        // If Content-Type is not application/json, we can't assume that this is a JSON body -
-        // unless it
-        // has already been validated as JSON.
-        (Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value &&
-            !bodyIsValidJson) -> null
-        // We only want to include the body string as raw JSON if we trust the body. In addition,
-        // the body can't include unescaped newlines, as that makes CloudWatch interpret the body as
-        // multiple different log messages (newlines are used to separate log entries).
-        !trustedBody || bodyString.contains('\n') -> {
-          try {
-            return Json.parseToJsonElement(bodyString)
-          } catch (_: Exception) {
-            return null
-          }
-        }
-
-        // JsonUnquotedLiteral throws if given "null", so we have to check that here first
-        bodyString == "null" -> JsonNull
-        else -> {
-          @OptIn(ExperimentalSerializationApi::class) (JsonUnquotedLiteral(bodyString))
-        }
-      }
+      // Otherwise, we have to pass validJson = false, so rawJson will check if the body is actually
+      // valid JSON
+      return rawJson(bodyString, validJson = false)
     }
 
     private val log = getLogger {}
