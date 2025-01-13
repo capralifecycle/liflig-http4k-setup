@@ -16,7 +16,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.json.contentOrNull
@@ -49,6 +48,7 @@ import org.junit.jupiter.api.Test
 // This test only covers logback which is set up for this project
 // and assumed to be what we use with liflig-logging.
 
+@OptIn(ExperimentalSerializationApi::class) // For JsonUnquotedLiteral
 class LoggingFilterTest {
   private val exampleLog: RequestResponseLog<CustomPrincipalLog> =
       RequestResponseLog(
@@ -241,7 +241,6 @@ class LoggingFilterTest {
    * stream bodies, which must be handled differently in some cases. So we now set up a Jetty server
    * here to test real HTTP body handling.
    */
-  @OptIn(ExperimentalSerializationApi::class)
   @Test
   fun `filter works with actual HTTP server`() {
     val log =
@@ -255,21 +254,21 @@ class LoggingFilterTest {
   }
 
   /** See [no.liflig.http4k.setup.markBodyAsValidJson]. */
-  @OptIn(ExperimentalSerializationApi::class)
   @Test
   fun `filter reparses request JSON when it has not been parsed in handler`() {
     val log =
         getServerLog(
-            requestBody = """{"type":"request"}""",
+            // Pass invalid JSON here, to verify below that it gets reparsed and included as an
+            // escaped string in the log output
+            requestBody = """{"type":"invalidJSON""",
             responseBody = """{"type":"response"}""",
             parseRequestBody = false,
         )
 
-    log.request.body?.content shouldBe JsonObject(mapOf("type" to JsonPrimitive("request")))
+    log.request.body?.content shouldBe JsonPrimitive("""{"type":"invalidJSON""")
     log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"response"}""")
   }
 
-  @OptIn(ExperimentalSerializationApi::class)
   @Test
   fun `filter does not reparse body with wrong Content-Type when it has already been parsed as JSON`() {
     val log =
@@ -298,9 +297,8 @@ response"}"""
 
     val log = getServerLog(requestBody, responseBody)
 
-    log.request.body?.content shouldBe JsonObject(mapOf("type" to JsonPrimitive("request")))
-    log.response.body?.content shouldBe
-        JsonObject(mapOf("type" to JsonPrimitive("multiline\nresponse")))
+    log.request.body?.content shouldBe JsonUnquotedLiteral("""{"type":"request"}""")
+    log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"multiline\nresponse"}""")
   }
 
   @Test
