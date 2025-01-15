@@ -213,10 +213,10 @@ class LoggingFilter<T : PrincipalLog>(
             entry,
             serializer = RequestResponseLog.serializer(principalLogSerializer),
         )
-        if (response.statusCode == 500) {
-          "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
-        } else {
+        if (response.statusCode < 400) {
           "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
+        } else {
+          "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
         }
       }
     }
