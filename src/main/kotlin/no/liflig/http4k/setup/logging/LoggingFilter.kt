@@ -205,12 +205,7 @@ class LoggingFilter<T : PrincipalLog>(
         return
       }
 
-      val logLevel =
-          when (response.statusCode) {
-            in 200..299 -> LogLevel.INFO
-            500 -> LogLevel.ERROR
-            else -> LogLevel.WARN
-          }
+      val logLevel = if (response.statusCode == 500) LogLevel.ERROR else LogLevel.INFO
 
       log.at(logLevel, cause = entry.throwable) {
         field(
@@ -218,11 +213,10 @@ class LoggingFilter<T : PrincipalLog>(
             entry,
             serializer = RequestResponseLog.serializer(principalLogSerializer),
         )
-        when (logLevel) {
-          LogLevel.INFO ->
-              "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
-          else ->
-              "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
+        if (response.statusCode == 500) {
+          "HTTP request failed (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
+        } else {
+          "HTTP request (${response.statusCode}) (${entry.durationMs} ms): ${request.method} ${request.uri}"
         }
       }
     }
