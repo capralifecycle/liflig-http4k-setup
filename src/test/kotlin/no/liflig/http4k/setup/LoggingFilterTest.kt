@@ -91,6 +91,7 @@ class LoggingFilterTest {
             normalizedStatusLens = RequestContextKey.optional(contexts),
             requestIdChainLens = requestIdChainLens,
             logHandler = { log -> logs.add(log) },
+            includeBody = true,
         )
 
     val request = Request(Method.GET, "/some/url")

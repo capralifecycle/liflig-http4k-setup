@@ -42,10 +42,14 @@ import org.http4k.lens.RequestContextKey
 class LifligBasicApiSetup(
     private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
     /**
+     * Set to true to include request and response bodies on HTTP logs. If enabled, only logs bodies
+     * for content types in [contentTypesToLog].
+     *
      * Can be overridden on a per-request basis (see [excludeRequestBodyFromLog] and
      * [excludeResponseBodyFromLog]).
      */
     private val logHttpBody: Boolean = false,
+    /** If [logHttpBody] is set to true, only these content types will be logged. */
     private val contentTypesToLog: List<ContentType> =
         listOf(
             ContentType.APPLICATION_JSON,

@@ -37,10 +37,10 @@ class LoggingFilter<T : PrincipalLog>(
      */
     private val logHandler: (RequestResponseLog<T>) -> Unit,
     /**
-     * `true` to log both request and response body. Only logs white-listed content types in
+     * Set to true to log both request and response bodies. Only logs white-listed content types in
      * [contentTypesToLog].
      */
-    private val includeBody: Boolean = true,
+    private val includeBody: Boolean = false,
     /**
      * Content-Type header values to white-list for logging. Requests or responses with different
      * types will not have their body logged.
