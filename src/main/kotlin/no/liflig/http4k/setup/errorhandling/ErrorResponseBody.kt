@@ -14,7 +14,7 @@ import org.http4k.core.with
  * [Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) specification.
  */
 @Serializable
-data class ErrorResponseBody(
+open class ErrorResponseBody(
     /** A short, human-readable summary of the problem type. */
     val title: String,
     /** A human-readable explanation specific to this occurrence of the problem. */
@@ -49,6 +49,34 @@ data class ErrorResponseBody(
     // status should always be a valid HTTP status code, but we fall back to 500 just in case
     val status = Status.fromCode(this.status) ?: Status.INTERNAL_SERVER_ERROR
     return Response(status).with(bodyLens of this)
+  }
+
+  open override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (javaClass != other?.javaClass) return false
+
+    other as ErrorResponseBody
+
+    if (status != other.status) return false
+    if (title != other.title) return false
+    if (detail != other.detail) return false
+    if (instance != other.instance) return false
+    if (type != other.type) return false
+
+    return true
+  }
+
+  open override fun hashCode(): Int {
+    var result = status
+    result = 31 * result + title.hashCode()
+    result = 31 * result + (detail?.hashCode() ?: 0)
+    result = 31 * result + instance.hashCode()
+    result = 31 * result + (type?.hashCode() ?: 0)
+    return result
+  }
+
+  open override fun toString(): String {
+    return "ErrorResponseBody(title='$title', detail=$detail, status=$status, instance='$instance', type=$type)"
   }
 }
 
