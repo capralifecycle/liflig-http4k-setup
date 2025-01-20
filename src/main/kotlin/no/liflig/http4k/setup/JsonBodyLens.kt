@@ -74,10 +74,11 @@ fun <T> createJsonBodyLens(
     errorResponseDetail: String? = null,
     includeExceptionMessageInErrorResponse: Boolean = false,
     jsonInstance: Json = httpBodyJson,
+    contentType: ContentType = ContentType.APPLICATION_JSON,
 ): BiDiBodyLens<T> =
     BiDiBodyLens(
         metas = jsonBodyLensMetas,
-        contentType = ContentType.APPLICATION_JSON,
+        contentType = contentType,
         get =
             fun(httpMessage: HttpMessage): T {
               val jsonBody =

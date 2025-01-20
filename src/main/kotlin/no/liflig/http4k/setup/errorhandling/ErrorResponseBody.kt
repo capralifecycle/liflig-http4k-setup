@@ -5,9 +5,11 @@ package no.liflig.http4k.setup.errorhandling
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import no.liflig.http4k.setup.createJsonBodyLens
+import org.http4k.core.ContentType
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.with
+import org.w3c.dom.Text
 
 /**
  * Standard error response body used for internal APIs for Liflig projects. Uses the
@@ -38,7 +40,7 @@ open class ErrorResponseBody(
             serializer(),
             errorResponse = "Failed to parse error response",
             jsonInstance = errorResponseBodyJson,
-        )
+            contentType = ContentType.Text("application/problem+json"))
   }
 
   /**

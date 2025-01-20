@@ -19,7 +19,7 @@
   <name>${project.artifactId}</name>
 
   <properties>
-    <major-version>1</major-version>
+    <major-version>2</major-version>
     <revision>${major-version}.local-SNAPSHOT</revision>
 
     <http4k.version>5.45.1.0</http4k.version>
