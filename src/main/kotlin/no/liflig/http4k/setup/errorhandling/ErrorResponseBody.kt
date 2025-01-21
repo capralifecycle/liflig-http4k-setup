@@ -14,6 +14,8 @@ import org.w3c.dom.Text
 /**
  * Standard error response body used for internal APIs for Liflig projects. Uses the
  * [Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) specification.
+ * Uses open class instead of data class to give the opportunity to extend the class
+ * with custom fields.
  */
 @Serializable
 open class ErrorResponseBody(
