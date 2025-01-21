@@ -67,6 +67,8 @@ private val httpBodyJson = Json {
  *
  * @param jsonInstance The [kotlinx.serialization.json.Json] instance to use for serialization.
  *   Defaults to a Json instance with `encodeDefaults = true` and `ignoreUnknownKeys = true`.
+ * @param contentType Custom value of Content-Type header to use in response, in case you want
+ *   something other than `application/json`.
  */
 fun <T> createJsonBodyLens(
     serializer: KSerializer<T>,
