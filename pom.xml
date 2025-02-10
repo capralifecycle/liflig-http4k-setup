@@ -22,7 +22,7 @@
     <major-version>1</major-version>
     <revision>${major-version}.local-SNAPSHOT</revision>
 
-    <http4k.version>5.46.0.0</http4k.version>
+    <http4k.version>5.47.0.0</http4k.version>
     <kotlinx-serialization.version>1.7.3</kotlinx-serialization.version>
     <liflig-logging.version>2.20250210.140335</liflig-logging.version>
     <slf4j.version>2.0.16</slf4j.version>
