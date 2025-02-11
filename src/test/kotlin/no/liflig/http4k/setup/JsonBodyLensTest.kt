@@ -68,6 +68,17 @@ class JsonBodyLensTest {
   }
 
   @Test
+  fun `custom content type is returned in HTTP response`() {
+    val bodyLens =
+        createJsonBodyLens(
+            ExampleDto.serializer(), contentType = ContentType.Text("my own custom type"))
+
+    val response = Response(Status.OK).with(bodyLens.of(ExampleDto(id = 1, name = "test")))
+
+    Header.CONTENT_TYPE(response)!!.value shouldBe "my own custom type"
+  }
+
+  @Test
   fun `custom errorResponse is returned in HTTP response`() {
     val bodyLens =
         createJsonBodyLens(

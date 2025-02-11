@@ -117,7 +117,7 @@ fun <T> createJsonBodyLens(
         setLens =
             fun(jsonBody: T, httpMessage: HttpMessage): HttpMessage {
               return httpMessage
-                  .with(Header.CONTENT_TYPE of ContentType.APPLICATION_JSON)
+                  .with(Header.CONTENT_TYPE of contentType)
                   .body(jsonInstance.encodeToString(serializer, jsonBody))
             },
     )
