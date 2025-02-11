@@ -8,6 +8,7 @@ import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.filters.http4kOpenTelemetryFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
+import no.liflig.http4k.setup.logging.PrincipalLog
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import org.http4k.contract.ErrorResponseRenderer
@@ -39,8 +40,8 @@ import org.http4k.lens.RequestContextKey
  * Note! Ordering of filters are important. Do not mess with them unless you know what you are
  * doing.
  */
-class LifligBasicApiSetup(
-    private val logHandler: (RequestResponseLog<LifligUserPrincipalLog>) -> Unit,
+class LifligBasicApiSetup<T : PrincipalLog>(
+    private val logHandler: (RequestResponseLog<T>) -> Unit,
     /**
      * Set to true to include request and response bodies on HTTP logs. If enabled, only logs bodies
      * for content types in [contentTypesToLog].
@@ -75,7 +76,7 @@ class LifligBasicApiSetup(
        * This param could be set in constructor, but is set here in order to nudge developer to
        * create function closer to its local API setup.
        */
-      principalLog: (Request) -> LifligUserPrincipalLog?
+      principalLog: (Request) -> T?
   ): LifligBasicApiSetupConfig {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val normalizedStatusLens = RequestContextKey.optional<NormalizedStatus>(contexts)
@@ -95,7 +96,7 @@ class LifligBasicApiSetup(
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(RequestIdMdcFilter(requestIdChainLens))
             .then(
-                LoggingFilter(
+                LoggingFilter<T>(
                     principalLog = principalLog,
                     errorLogLens = errorLogLens,
                     normalizedStatusLens = normalizedStatusLens,
