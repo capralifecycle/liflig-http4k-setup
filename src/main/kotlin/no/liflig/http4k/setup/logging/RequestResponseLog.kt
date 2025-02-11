@@ -26,7 +26,7 @@ import no.liflig.http4k.setup.normalization.NormalizedStatusSerializer
 interface PrincipalLog
 
 @Serializable
-data class RequestResponseLog<T : PrincipalLog>(
+data class RequestResponseLog<PrincipalLogT : PrincipalLog>(
     /** Timestamp when the log entry is created. */
     val timestamp: Instant,
     val requestId: UUID,
@@ -38,7 +38,7 @@ data class RequestResponseLog<T : PrincipalLog>(
     val request: RequestLog,
     val response: ResponseLog,
     /** The [Principal][PrincipalLog] that executed the request. */
-    val principal: T?,
+    val principal: PrincipalLogT?,
     /** Request duration in ms. */
     val durationMs: Long,
     /** Throwable during handling of request/response. */
