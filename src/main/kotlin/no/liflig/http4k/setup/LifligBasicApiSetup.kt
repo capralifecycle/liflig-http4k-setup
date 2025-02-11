@@ -40,8 +40,8 @@ import org.http4k.lens.RequestContextKey
  * Note! Ordering of filters are important. Do not mess with them unless you know what you are
  * doing.
  */
-class LifligBasicApiSetup<T : PrincipalLog>(
-    private val logHandler: (RequestResponseLog<T>) -> Unit,
+class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
+    private val logHandler: (RequestResponseLog<PrincipalLogT>) -> Unit,
     /**
      * Set to true to include request and response bodies on HTTP logs. If enabled, only logs bodies
      * for content types in [contentTypesToLog].
@@ -76,7 +76,7 @@ class LifligBasicApiSetup<T : PrincipalLog>(
        * This param could be set in constructor, but is set here in order to nudge developer to
        * create function closer to its local API setup.
        */
-      principalLog: (Request) -> T?
+      principalLog: (Request) -> PrincipalLogT?
   ): LifligBasicApiSetupConfig {
     val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val normalizedStatusLens = RequestContextKey.optional<NormalizedStatus>(contexts)
@@ -96,7 +96,7 @@ class LifligBasicApiSetup<T : PrincipalLog>(
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(RequestIdMdcFilter(requestIdChainLens))
             .then(
-                LoggingFilter<T>(
+                LoggingFilter<PrincipalLogT>(
                     principalLog = principalLog,
                     errorLogLens = errorLogLens,
                     normalizedStatusLens = normalizedStatusLens,

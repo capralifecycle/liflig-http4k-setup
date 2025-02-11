@@ -23,9 +23,9 @@ import org.http4k.lens.Header
 import org.http4k.lens.RequestContextLens
 
 /** Filter to handle request logging. */
-class LoggingFilter<T : PrincipalLog>(
+class LoggingFilter<PrincipalLogT : PrincipalLog>(
     /** Extracts whe [PrincipalLog] from the [Request]. */
-    private val principalLog: (Request) -> T?,
+    private val principalLog: (Request) -> PrincipalLogT?,
     /** Reads the [ErrorLog] from the [Request], if any. */
     private val errorLogLens: BiDiLens<Request, ErrorLog?>,
     private val normalizedStatusLens: BiDiLens<Request, NormalizedStatus?>,
@@ -35,7 +35,7 @@ class LoggingFilter<T : PrincipalLog>(
      *
      * A default implementation is provided in [LoggingFilter.logHandler].
      */
-    private val logHandler: (RequestResponseLog<T>) -> Unit,
+    private val logHandler: (RequestResponseLog<PrincipalLogT>) -> Unit,
     /**
      * Set to true to log both request and response bodies. Only logs white-listed content types in
      * [contentTypesToLog].
@@ -177,21 +177,21 @@ class LoggingFilter<T : PrincipalLog>(
      * - 500: ERROR
      * - else: WARN
      */
-    fun <T : PrincipalLog> createLogHandler(
+    fun <PrincipalLogT : PrincipalLog> createLogHandler(
         /**
          * Serializer for custom principal data class when you do not want to use Liflig default
          * [LifligUserPrincipalLog].
          */
-        principalLogSerializer: KSerializer<T>,
+        principalLogSerializer: KSerializer<PrincipalLogT>,
         /** When `true`, any calls to `/health` that returned `200 OK` will not be logged. */
         suppressSuccessfulHealthChecks: Boolean = true,
-    ): (RequestResponseLog<T>) -> Unit = { entry ->
+    ): (RequestResponseLog<PrincipalLogT>) -> Unit = { entry ->
       logEntry(entry, principalLogSerializer, suppressSuccessfulHealthChecks)
     }
 
-    private fun <T : PrincipalLog> logEntry(
-        entry: RequestResponseLog<T>,
-        principalLogSerializer: KSerializer<T>,
+    private fun <PrincipalLogT : PrincipalLog> logEntry(
+        entry: RequestResponseLog<PrincipalLogT>,
+        principalLogSerializer: KSerializer<PrincipalLogT>,
         suppressSuccessfulHealthChecks: Boolean,
     ) {
       val request = entry.request
