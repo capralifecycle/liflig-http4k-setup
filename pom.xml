@@ -7,7 +7,7 @@
   <parent>
     <groupId>no.liflig</groupId>
     <artifactId>kotlin-parent</artifactId>
-    <version>3.20250225.144936</version>
+    <version>3.20250227.045447</version>
   </parent>
 
   <!--suppress MavenRedundantGroupId -->
@@ -19,18 +19,22 @@
   <name>${project.artifactId}</name>
 
   <properties>
-    <major-version>2</major-version>
+    <major-version>3</major-version>
     <revision>${major-version}.local-SNAPSHOT</revision>
 
-    <http4k.version>5.47.0.0</http4k.version>
-    <kotlinx-serialization.version>1.7.3</kotlinx-serialization.version>
-    <liflig-logging.version>2.20250225.182003</liflig-logging.version>
-    <slf4j.version>2.0.16</slf4j.version>
+    <kotlin.compiler.jvmTarget>21</kotlin.compiler.jvmTarget>
+    <java.version>21</java.version>
+    <kotlin.compiler.apiVersion>2.1</kotlin.compiler.apiVersion>
+
+    <http4k.version>6.0.1.0</http4k.version>
+    <kotlinx-serialization.version>1.8.0</kotlinx-serialization.version>
+    <liflig-logging.version>2.20250227.113325</liflig-logging.version>
+    <slf4j.version>2.0.17</slf4j.version>
 
     <!-- Testing-->
     <junit-bom.version>5.12.0</junit-bom.version>
     <kotest-assertions-core-jvm.version>5.9.1</kotest-assertions-core-jvm.version>
-    <logback-classic.version>1.5.16</logback-classic.version>
+    <logback-classic.version>1.5.17</logback-classic.version>
     <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
   </properties>
 
@@ -89,7 +93,7 @@
     </dependency>
     <dependency>
       <groupId>org.http4k</groupId>
-      <artifactId>http4k-contract</artifactId>
+      <artifactId>http4k-api-openapi</artifactId>
     </dependency>
     <dependency>
       <groupId>org.http4k</groupId>
@@ -97,7 +101,7 @@
     </dependency>
     <dependency>
       <groupId>org.http4k</groupId>
-      <artifactId>http4k-opentelemetry</artifactId>
+      <artifactId>http4k-ops-opentelemetry</artifactId>
     </dependency>
 
     <dependency>
@@ -175,6 +179,7 @@
           </execution>
         </executions>
         <configuration>
+          <jvmTarget>${java.version}</jvmTarget>
           <compilerPlugins>
             <plugin>kotlinx-serialization</plugin>
           </compilerPlugins>
