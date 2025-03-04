@@ -1,6 +1,6 @@
 package no.liflig.http4k.setup
 
-import java.util.UUID
+import no.liflig.http4k.setup.context.RequestContextFilter
 import no.liflig.http4k.setup.errorhandling.CatchUnhandledThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
 import no.liflig.http4k.setup.errorhandling.LastResortCatchAllThrowablesFilter
@@ -10,17 +10,14 @@ import no.liflig.http4k.setup.filters.http4kOpenTelemetryFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
 import no.liflig.http4k.setup.logging.RequestResponseLog
-import no.liflig.http4k.setup.normalization.NormalizedStatus
 import org.http4k.contract.ErrorResponseRenderer
 import org.http4k.core.ContentType
 import org.http4k.core.Filter
 import org.http4k.core.Request
-import org.http4k.core.RequestContexts
 import org.http4k.core.then
 import org.http4k.filter.CorsPolicy
 import org.http4k.filter.ServerFilters
 import org.http4k.filter.ServerFilters.CatchLensFailure
-import org.http4k.lens.RequestContextKey
 
 /**
  * Encapsulates the basic API setup for all of our services so that they handle requests similarly.
@@ -78,36 +75,26 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
        */
       principalLog: (Request) -> PrincipalLogT?
   ): LifligBasicApiSetupConfig {
-    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
-    val normalizedStatusLens = RequestContextKey.optional<NormalizedStatus>(contexts)
-
     val errorResponseRenderer =
-        ContractLensErrorResponseRenderer(
-            errorLogLens = errorLogLens,
-            normalizedStatusLens = normalizedStatusLens,
-            delegate = errorResponseBodyRenderer,
-        )
+        ContractLensErrorResponseRenderer(delegate = errorResponseBodyRenderer)
 
     val coreFilters =
-        ServerFilters.InitialiseRequestContext(contexts)
-            .then(LastResortCatchAllThrowablesFilter())
+        LastResortCatchAllThrowablesFilter()
             // We want this filter to be before the rest of the filters, otherwise we won't get
             // correct CORS headers on responses returned from e.g. CatchUnhandledThrowablesFilter
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
-            .then(RequestIdMdcFilter(requestIdChainLens))
+            .then(RequestContextFilter())
+            .then(RequestIdMdcFilter())
             .then(
                 LoggingFilter<PrincipalLogT>(
                     principalLog = principalLog,
-                    errorLogLens = errorLogLens,
-                    normalizedStatusLens = normalizedStatusLens,
-                    requestIdChainLens = requestIdChainLens,
                     logHandler = logHandler,
                     includeBody = logHttpBody,
                     contentTypesToLog = contentTypesToLog,
                     redactedHeaders = redactedHeaders,
                 ),
             )
-            .then(CatchUnhandledThrowablesFilter(errorLogLens))
+            .then(CatchUnhandledThrowablesFilter())
             .then(ServerFilters.http4kOpenTelemetryFilter())
             .then(CatchLensFailure(errorResponseRenderer::badRequest))
 
@@ -126,5 +113,3 @@ data class LifligBasicApiSetupConfig(
      */
     val errorResponseRenderer: ContractLensErrorResponseRenderer
 )
-
-val contexts = RequestContexts()

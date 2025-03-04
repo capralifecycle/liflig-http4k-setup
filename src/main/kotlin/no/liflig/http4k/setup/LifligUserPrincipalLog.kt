@@ -3,14 +3,13 @@ package no.liflig.http4k.setup
 import kotlinx.serialization.Serializable
 import no.liflig.http4k.setup.logging.PrincipalLog
 
-/**
- * Defines what user info should be in API request log.
- *
- * TODO: Should this model be Liflig default? ..or maybe remove from lib?
- */
+/** Defines what user info should be in API request log. */
 @Serializable
-data class LifligUserPrincipalLog(val id: String, val name: String, val roles: List<RoleClaim>) :
-    PrincipalLog
+data class LifligUserPrincipalLog(
+    val id: String,
+    val name: String,
+    val roles: List<RoleClaim>,
+) : PrincipalLog
 
 @Serializable
 data class RoleClaim(

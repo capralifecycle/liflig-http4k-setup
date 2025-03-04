@@ -3,14 +3,12 @@ package no.liflig.http4k.setup
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import no.liflig.http4k.setup.lenses.ListQuery
+import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Request
-import org.http4k.core.RequestContexts
 import org.http4k.core.Response
 import org.http4k.core.Status
-import org.http4k.core.then
 import org.http4k.core.with
-import org.http4k.filter.ServerFilters
 import org.http4k.format.KotlinxSerialization.json
 import org.junit.jupiter.api.Test
 
@@ -19,11 +17,10 @@ class ListQueryTest {
   fun `ListQuery accepts query params on both param=value1,value2 and param=value1&param=value2 formats`() {
     val queryParam = ListQuery.required("param")
 
-    val handler =
-        ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
-          val values = queryParam(request)
-          Response(Status.OK).json(values)
-        }
+    val handler: HttpHandler = { request ->
+      val values = queryParam(request)
+      Response(Status.OK).json(values)
+    }
 
     for (url in listOf("/some/url?param=value1,value2", "/some/url?param=value1&param=value2")) {
       val response = handler(Request(Method.GET, url))
@@ -39,11 +36,10 @@ class ListQueryTest {
   fun `mapValues maps values correctly`() {
     val idsQuery = ListQuery.mapValues { Id(it) }.required("ids")
 
-    val handler =
-        ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
-          val ids = idsQuery(request)
-          Response(Status.OK).json(ids)
-        }
+    val handler: HttpHandler = { request ->
+      val ids = idsQuery(request)
+      Response(Status.OK).json(ids)
+    }
 
     val response = handler(Request(Method.GET, "/some/url?ids=1,2,3"))
     response.status shouldBe Status.OK
@@ -56,11 +52,10 @@ class ListQueryTest {
     val idsQuery =
         ListQuery.mapValues(incoming = { Id(it) }, outgoing = { id -> id.value }).required("ids")
 
-    val handler =
-        ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
-          val ids = idsQuery(request)
-          Response(Status.OK).json(ids)
-        }
+    val handler: HttpHandler = { request ->
+      val ids = idsQuery(request)
+      Response(Status.OK).json(ids)
+    }
 
     val response =
         handler(
@@ -75,11 +70,10 @@ class ListQueryTest {
   fun `query parameter with no value is parsed as empty list`() {
     val queryParam = ListQuery.required("param")
 
-    val handler =
-        ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
-          val values = queryParam(request)
-          Response(Status.OK).json(values)
-        }
+    val handler: HttpHandler = { request ->
+      val values = queryParam(request)
+      Response(Status.OK).json(values)
+    }
 
     val response = handler(Request(Method.GET, "/some/url?param="))
     response.status shouldBe Status.OK
@@ -97,11 +91,10 @@ class ListQueryTest {
   fun `enum list query`() {
     val enumQuery = ListQuery.enum<TestEnum>().required("query")
 
-    val handler =
-        ServerFilters.InitialiseRequestContext(RequestContexts()).then { request ->
-          val enumValues = enumQuery(request)
-          Response(Status.OK).json(enumValues)
-        }
+    val handler: HttpHandler = { request ->
+      val enumValues = enumQuery(request)
+      Response(Status.OK).json(enumValues)
+    }
 
     val response =
         handler(

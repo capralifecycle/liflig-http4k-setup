@@ -16,7 +16,7 @@ import kotlinx.serialization.encoding.Encoder
  * java.lang.NullPointerException: Parameter specified as non-null is null: method
  * kotlinx.serialization.internal.ArrayClassDesc.<init>, parameter elementDesc
  */
-object ThrowableSerializer : KSerializer<Throwable> {
+internal object ThrowableSerializer : KSerializer<Throwable> {
   override val descriptor: SerialDescriptor = Serialized.serializer().descriptor
 
   override fun serialize(encoder: Encoder, value: Throwable): Unit =
@@ -26,7 +26,7 @@ object ThrowableSerializer : KSerializer<Throwable> {
               Serialized(
                   value.toString(),
                   value.stackTrace,
-                  //                  value.suppressed,
+                  // value.suppressed,
                   value.cause,
               ),
           )
@@ -38,12 +38,12 @@ object ThrowableSerializer : KSerializer<Throwable> {
   private class Serialized(
       val value: String,
       val stackTrace: Array<StackTraceElement>?,
-      //      val suppressed: Array<Throwable>?,
+      // val suppressed: Array<Throwable>?,
       val cause: Throwable?,
   )
 }
 
-object StackTraceElementSerializer : KSerializer<StackTraceElement> {
+internal object StackTraceElementSerializer : KSerializer<StackTraceElement> {
   override val descriptor: SerialDescriptor = Serialized.serializer().descriptor
 
   override fun serialize(encoder: Encoder, value: StackTraceElement): Unit =

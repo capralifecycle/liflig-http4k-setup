@@ -2,14 +2,11 @@ package no.liflig.http4k.setup.logging
 
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 import kotlinx.serialization.KSerializer
 import no.liflig.http4k.setup.LifligUserPrincipalLog
-import no.liflig.http4k.setup.errorhandling.ErrorLog
-import no.liflig.http4k.setup.excludeRequestBodyFromLogLens
-import no.liflig.http4k.setup.excludeResponseBodyFromLogLens
+import no.liflig.http4k.setup.context.RequestContext
+import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.normalization.NormalizedStatus
-import no.liflig.http4k.setup.normalization.deriveNormalizedStatus
 import no.liflig.logging.LogLevel
 import no.liflig.logging.getLogger
 import org.http4k.core.ContentType
@@ -18,22 +15,16 @@ import org.http4k.core.Headers
 import org.http4k.core.HttpHandler
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
-import org.http4k.lens.BiDiLens
 import org.http4k.lens.Header
-import org.http4k.lens.RequestContextLens
 
 /** Filter to handle request logging. */
 class LoggingFilter<PrincipalLogT : PrincipalLog>(
-    /** Extracts whe [PrincipalLog] from the [Request]. */
+    /** Extracts the [PrincipalLog] from the [Request]. */
     private val principalLog: (Request) -> PrincipalLogT?,
-    /** Reads the [ErrorLog] from the [Request], if any. */
-    private val errorLogLens: BiDiLens<Request, ErrorLog?>,
-    private val normalizedStatusLens: BiDiLens<Request, NormalizedStatus?>,
-    private val requestIdChainLens: RequestContextLens<List<UUID>>,
     /**
      * A callback to pass the final log entry to a logger, like liflig-logging.
      *
-     * A default implementation is provided in [LoggingFilter.logHandler].
+     * A default implementation is provided in [LoggingFilter.createLogHandler].
      */
     private val logHandler: (RequestResponseLog<PrincipalLogT>) -> Unit,
     /**
@@ -61,7 +52,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
 ) : Filter {
   override fun invoke(nextHandler: HttpHandler): HttpHandler {
     return { request ->
-      val requestIdChain = requestIdChainLens(request)
+      val requestIdChain = RequestIdMdcFilter.requestIdChainLens(request)
       val startTimeInstant = Instant.now()
       val startTime = System.nanoTime()
 
@@ -75,7 +66,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
           when {
             !includeBody -> null
             !request.shouldLogContentType(contentTypesToLog) -> null
-            excludeRequestBodyFromLogLens(request) ->
+            RequestContext.isRequestBodyExcludedFromLog(request) ->
                 HttpBodyLogWithSize(HttpBodyLog.BODY_EXCLUDED_MESSAGE, size = null)
             else -> HttpBodyLog.from(request)
           }
@@ -83,7 +74,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
           when {
             !includeBody -> null
             !response.shouldLogContentType(contentTypesToLog) -> null
-            excludeResponseBodyFromLogLens(request) ->
+            RequestContext.isResponseBodyExcludedFromLog(request) ->
                 HttpBodyLogWithSize(HttpBodyLog.BODY_EXCLUDED_MESSAGE, size = null)
             else -> HttpBodyLog.from(response)
           }
@@ -112,8 +103,8 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
                   ),
               principal = principalLog(request),
               durationMs = duration.toMillis(),
-              throwable = errorLogLens(request)?.throwable,
-              status = normalizedStatusLens(request) ?: deriveNormalizedStatus(response),
+              throwable = RequestContext.getExceptionForLog(request),
+              status = NormalizedStatus.from(response),
               thread = Thread.currentThread().name,
           )
 
@@ -152,10 +143,8 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
      * Log handler that logs request/response data in a "requestInfo" log field. If the HTTP handler
      * threw an exception, that is also attached to the log.
      *
-     * The log uses different log levels depending on the response status code:
-     * - 200..299: INFO
-     * - 500: ERROR
-     * - else: WARN
+     * Internal server errors (500) are logged at the ERROR log level, other statuses are logged at
+     * INFO.
      *
      * Uses default [LifligUserPrincipalLog] serializer. Either because you actually want to use
      * this principalLog class for logging or because you do not have a concept principal and do not
@@ -172,10 +161,8 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
      * Returns a log handler that logs request/response data in a "requestInfo" log field. If the
      * HTTP handler threw an exception, that is also attached to the log.
      *
-     * The log uses different log levels depending on the response status code:
-     * - 200..299: INFO
-     * - 500: ERROR
-     * - else: WARN
+     * Internal server errors (500) are logged at the ERROR log level, other statuses are logged at
+     * INFO.
      */
     fun <PrincipalLogT : PrincipalLog> createLogHandler(
         /**

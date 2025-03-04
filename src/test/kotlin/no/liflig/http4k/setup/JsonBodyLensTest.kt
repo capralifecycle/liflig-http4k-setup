@@ -9,6 +9,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.MissingFieldException
 import kotlinx.serialization.Serializable
+import no.liflig.http4k.setup.context.RequestContext
 import no.liflig.http4k.setup.errorhandling.ErrorResponseBody
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.testutils.useHttpServer
@@ -55,7 +56,7 @@ class JsonBodyLensTest {
   fun `lens sets requestBodyIsValidJson on success`() {
     useServerRequest("""{"id":3,"name":"test"}""") { request ->
       ExampleDto.bodyLens(request)
-      requestBodyIsValidJson(request) shouldBe true
+      RequestContext.isRequestBodyValidJson(request) shouldBe true
     }
   }
 
@@ -63,7 +64,7 @@ class JsonBodyLensTest {
   fun `lens does not set requestBodyIsValidJson on failure`() {
     useServerRequest("""{"name":"no ID"}""") { request ->
       shouldThrowAny { ExampleDto.bodyLens(request) }
-      requestBodyIsValidJson(request) shouldBe false
+      RequestContext.isRequestBodyValidJson(request) shouldBe false
     }
   }
 
@@ -148,8 +149,8 @@ class JsonBodyLensTest {
   }
 
   /**
-   * In order for the body lens to set [requestBodyIsValidJsonLens], the request must be in the
-   * context of an actual HTTP server.
+   * In order for the body lens to set [RequestContext.markRequestBodyAsValidJson], the request must
+   * be in the context of an actual HTTP server.
    */
   private fun useServerRequest(requestBody: String, block: (Request) -> Unit) {
     useHttpServer(

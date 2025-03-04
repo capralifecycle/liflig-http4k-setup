@@ -21,6 +21,7 @@ import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import no.liflig.http4k.setup.context.RequestContextFilter
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.logging.HttpBodyLog
 import no.liflig.http4k.setup.logging.LoggingFilter
@@ -38,9 +39,7 @@ import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.then
 import org.http4k.core.with
-import org.http4k.filter.ServerFilters
 import org.http4k.lens.BiDiBodyLens
-import org.http4k.lens.RequestContextKey
 import org.http4k.lens.string
 import org.junit.jupiter.api.Test
 
@@ -81,15 +80,11 @@ class LoggingFilterTest {
 
   @Test
   fun `filter gives expected log object`() {
-    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
         LoggingFilter(
             principalLog = { CustomPrincipalLog },
-            errorLogLens = RequestContextKey.optional(contexts),
-            normalizedStatusLens = RequestContextKey.optional(contexts),
-            requestIdChainLens = requestIdChainLens,
             logHandler = { log -> logs.add(log) },
             includeBody = true,
         )
@@ -97,10 +92,7 @@ class LoggingFilterTest {
     val request = Request(Method.GET, "/some/url")
 
     val handler =
-        ServerFilters.InitialiseRequestContext(contexts)
-            .then(RequestIdMdcFilter(requestIdChainLens))
-            .then(loggingFilter)
-            .then { Response(Status.OK).body("hello world") }
+        RequestIdMdcFilter().then(loggingFilter).then { Response(Status.OK).body("hello world") }
 
     val response = handler(request)
 
@@ -122,24 +114,17 @@ class LoggingFilterTest {
   @Test
   fun `filter will redact authorization header by default`() {
     val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
-    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
 
     val loggingFilter =
         LoggingFilter(
             principalLog = { CustomPrincipalLog },
-            errorLogLens = RequestContextKey.optional(contexts),
-            normalizedStatusLens = RequestContextKey.optional(contexts),
-            requestIdChainLens = requestIdChainLens,
             logHandler = { log -> logs.add(log) },
         )
 
     val request = Request(Method.GET, "/some/url").header("authorization", "my very secret value")
 
     val handler =
-        ServerFilters.InitialiseRequestContext(contexts)
-            .then(RequestIdMdcFilter(requestIdChainLens))
-            .then(loggingFilter)
-            .then { Response(Status.OK).body("hello world") }
+        RequestIdMdcFilter().then(loggingFilter).then { Response(Status.OK).body("hello world") }
 
     handler(request)
 
@@ -153,24 +138,20 @@ class LoggingFilterTest {
 
   @Test
   fun `excludeRequestBodyFromLog and excludeResponseBodyFromLog exclude bodies`() {
-    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
         LoggingFilter(
             includeBody = true,
             principalLog = { CustomPrincipalLog },
-            errorLogLens = RequestContextKey.optional(contexts),
-            normalizedStatusLens = RequestContextKey.optional(contexts),
-            requestIdChainLens = requestIdChainLens,
             logHandler = { log -> logs.add(log) },
         )
 
     val request = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body"))
 
     val handler =
-        ServerFilters.InitialiseRequestContext(contexts)
-            .then(RequestIdMdcFilter(requestIdChainLens))
+        RequestContextFilter() // Must have request context to set the body exclusion flags
+            .then(RequestIdMdcFilter())
             .then(loggingFilter)
             .then { receivedRequest ->
               receivedRequest.excludeRequestBodyFromLog()
@@ -190,28 +171,20 @@ class LoggingFilterTest {
 
   @Test
   fun `errorResponse includes exception in log`() {
-    val requestIdChainLens = RequestContextKey.required<List<UUID>>(contexts)
     val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
         LoggingFilter(
             includeBody = true,
             principalLog = { CustomPrincipalLog },
-            /**
-             * Use global [errorLogLens], which is what is used by [errorResponse] and
-             * [no.liflig.http4k.setup.LifligBasicApiSetup.create].
-             */
-            errorLogLens = errorLogLens,
-            normalizedStatusLens = RequestContextKey.optional(contexts),
-            requestIdChainLens = requestIdChainLens,
             logHandler = { log -> logs.add(log) },
         )
 
     val exception = Exception("test exception")
 
     val handler =
-        ServerFilters.InitialiseRequestContext(contexts)
-            .then(RequestIdMdcFilter(requestIdChainLens))
+        RequestContextFilter() // Must have request context for attaching exception
+            .then(RequestIdMdcFilter())
             .then(loggingFilter)
             .then { request ->
               errorResponse(request, Status.NOT_FOUND, "Not found", cause = exception)

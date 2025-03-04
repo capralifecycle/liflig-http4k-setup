@@ -1,10 +1,7 @@
 package no.liflig.http4k.setup
 
+import no.liflig.http4k.setup.context.RequestContext
 import org.http4k.core.Request
-import org.http4k.core.with
-import org.http4k.lens.RequestContextKey
-
-internal val excludeRequestBodyFromLogLens = RequestContextKey.defaulted(contexts, false)
 
 /**
  * Excludes the request body from logs by the
@@ -12,10 +9,8 @@ internal val excludeRequestBodyFromLogLens = RequestContextKey.defaulted(context
  * handler before returning a response.
  */
 fun Request.excludeRequestBodyFromLog() {
-  with(excludeRequestBodyFromLogLens of true)
+  RequestContext.excludeRequestBodyFromLog(this)
 }
-
-internal val excludeResponseBodyFromLogLens = RequestContextKey.defaulted(contexts, false)
 
 /**
  * Excludes the response body from logs by the
@@ -23,5 +18,5 @@ internal val excludeResponseBodyFromLogLens = RequestContextKey.defaulted(contex
  * handler before returning a response.
  */
 fun Request.excludeResponseBodyFromLog() {
-  with(excludeResponseBodyFromLogLens of true)
+  RequestContext.excludeResponseBodyFromLog(this)
 }

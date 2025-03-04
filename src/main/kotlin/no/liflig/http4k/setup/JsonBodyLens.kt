@@ -2,7 +2,7 @@ package no.liflig.http4k.setup
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
-import no.liflig.http4k.setup.utils.getFromRequestContext
+import no.liflig.http4k.setup.context.RequestContext
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
@@ -13,7 +13,6 @@ import org.http4k.lens.Invalid
 import org.http4k.lens.LensFailure
 import org.http4k.lens.Meta
 import org.http4k.lens.ParamMeta
-import org.http4k.lens.RequestContextKey
 
 private val httpBodyJson = Json {
   encodeDefaults = true
@@ -169,27 +168,11 @@ private val jsonBodyLensMetas =
  * - In the case of responses, we trust that our server generates valid JSON.
  * - In the case of requests, we can't necessarily trust that the client has sent valid JSON, unless
  *   we've already parsed it. That's where this function comes in:
- *     - If we use [createJsonBodyLens] for parsing, we can call this after parsing succeeds, as we
+ *     - If we use `createJsonBodyLens` for parsing, we can call this after parsing succeeds, as we
  *       then know that the body is valid JSON.
- *     - In the rare case that you can't use [createJsonBodyLens], but you _know_ that the request
+ *     - In the rare case that you can't use `createJsonBodyLens`, but you _know_ that the request
  *       body has been parsed as valid JSON some other way, you can call this function yourself.
- *
- * The function uses a [RequestContextKey] to mark the request as having a valid JSON body, which we
- * can use in our LoggingFilter to know that we don't have to re-parse the body.
  */
 fun Request.markBodyAsValidJson() {
-  try {
-    this.with(requestBodyIsValidJsonLens.of(true))
-  } catch (_: Exception) {
-    // This can throw if there is no 'x-http4k-context' header present on the request. Since we only
-    // call this as an optimization (to avoid re-parsing JSON in LoggingFilter), we never want to
-    // fail on this call, so we catch all exceptions. We test that it works in
-    // CreateJsonBodyLensTest.
-  }
-}
-
-private val requestBodyIsValidJsonLens = RequestContextKey.defaulted(contexts, false)
-
-internal fun requestBodyIsValidJson(request: Request): Boolean {
-  return getFromRequestContext(request, requestBodyIsValidJsonLens, default = false)
+  RequestContext.markRequestBodyAsValidJson(this)
 }

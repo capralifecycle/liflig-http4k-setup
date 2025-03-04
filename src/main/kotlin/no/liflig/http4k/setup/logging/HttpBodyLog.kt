@@ -7,7 +7,9 @@ import java.nio.charset.StandardCharsets
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
-import no.liflig.http4k.setup.requestBodyIsValidJson
+import no.liflig.http4k.setup.context.RequestContext
+import no.liflig.http4k.setup.logging.HttpBodyLog.Companion.MAX_LOGGED_BODY_SIZE
+import no.liflig.http4k.setup.logging.HttpBodyLog.Companion.truncateBody
 import no.liflig.logging.getLogger
 import no.liflig.logging.rawJson
 import org.http4k.core.Body
@@ -102,7 +104,7 @@ value class HttpBodyLog(val content: JsonElement) {
        *
        * See [no.liflig.http4k.setup.markBodyAsValidJson].
        */
-      if (httpMessage is Request && requestBodyIsValidJson(httpMessage)) {
+      if (httpMessage is Request && RequestContext.isRequestBodyValidJson(httpMessage)) {
         return rawJson(bodyString, validJson = true)
       }
 

@@ -1,6 +1,5 @@
 @file:UseSerializers(
     InstantSerializer::class,
-    NormalizedStatusSerializer::class,
     ThrowableSerializer::class,
     UUIDSerializer::class,
 )
@@ -15,7 +14,6 @@ import no.liflig.http4k.setup.logging.json.InstantSerializer
 import no.liflig.http4k.setup.logging.json.ThrowableSerializer
 import no.liflig.http4k.setup.logging.json.UUIDSerializer
 import no.liflig.http4k.setup.normalization.NormalizedStatus
-import no.liflig.http4k.setup.normalization.NormalizedStatusSerializer
 
 /**
  * Represents a "principal" (user, or requesting entity) that will be logged.

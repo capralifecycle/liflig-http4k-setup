@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package no.liflig.http4k.setup.filters
 
 import no.liflig.http4k.setup.errorhandling.CatchUnhandledThrowablesFilter

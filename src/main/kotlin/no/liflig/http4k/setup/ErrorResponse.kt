@@ -1,18 +1,15 @@
 package no.liflig.http4k.setup
 
-import no.liflig.http4k.setup.errorhandling.ErrorLog
+import no.liflig.http4k.setup.context.RequestContext
 import no.liflig.http4k.setup.errorhandling.ErrorResponseBody
 import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.with
-import org.http4k.lens.RequestContextKey
 
-val errorLogLens = RequestContextKey.optional<ErrorLog>(contexts)
-
-/** Convenience function that puts throwable in context for API request log. */
+/** Convenience function that puts exception in request context for our LoggingFilter. */
 fun Request.attachThrowableToLog(throwable: Throwable) {
-  with(errorLogLens of ErrorLog(throwable))
+  RequestContext.setExceptionForLog(this, throwable)
 }
 
 /**

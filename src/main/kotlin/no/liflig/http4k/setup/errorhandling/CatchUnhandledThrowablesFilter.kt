@@ -1,13 +1,12 @@
 package no.liflig.http4k.setup.errorhandling
 
+import no.liflig.http4k.setup.context.RequestContext
 import no.liflig.http4k.setup.logging.LoggingFilter
 import org.http4k.core.Filter
 import org.http4k.core.HttpHandler
-import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.with
-import org.http4k.lens.BiDiLens
 
 /**
  * Filter to avoid leaking throwables to the client. It puts the throwable in context so that
@@ -23,15 +22,13 @@ import org.http4k.lens.BiDiLens
  * Note! Must be placed after [LoggingFilter] in filter chain in order to properly attach throwable
  * to log.
  */
-class CatchUnhandledThrowablesFilter(
-    private val errorLogLens: BiDiLens<Request, ErrorLog?>,
-) : Filter {
+class CatchUnhandledThrowablesFilter : Filter {
   override fun invoke(nextHandler: HttpHandler): HttpHandler {
     return { request ->
       try {
         nextHandler(request)
       } catch (throwable: Throwable) {
-        request.with(errorLogLens of ErrorLog(throwable))
+        RequestContext.setExceptionForLog(request, throwable)
 
         Response(Status.INTERNAL_SERVER_ERROR)
             .with(
