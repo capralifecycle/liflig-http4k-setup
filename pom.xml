@@ -28,7 +28,7 @@
 
     <http4k.version>6.1.0.1</http4k.version>
     <kotlinx-serialization.version>1.8.0</kotlinx-serialization.version>
-    <liflig-logging.version>2.20250313.231839</liflig-logging.version>
+    <liflig-logging.version>2.20250317.190410</liflig-logging.version>
     <slf4j.version>2.0.17</slf4j.version>
 
     <!-- Testing-->
