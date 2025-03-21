@@ -34,7 +34,7 @@
     <!-- Testing-->
     <junit-bom.version>5.12.1</junit-bom.version>
     <kotest-assertions-core-jvm.version>5.9.1</kotest-assertions-core-jvm.version>
-    <logback-classic.version>1.5.17</logback-classic.version>
+    <logback-classic.version>1.5.18</logback-classic.version>
     <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
   </properties>
 
