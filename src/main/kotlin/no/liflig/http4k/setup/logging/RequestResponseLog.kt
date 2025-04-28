@@ -14,6 +14,7 @@ import no.liflig.http4k.setup.logging.json.InstantSerializer
 import no.liflig.http4k.setup.logging.json.ThrowableSerializer
 import no.liflig.http4k.setup.logging.json.UUIDSerializer
 import no.liflig.http4k.setup.normalization.NormalizedStatus
+import no.liflig.logging.LogLevel
 
 /**
  * Represents a "principal" (user, or requesting entity) that will be logged.
@@ -44,6 +45,16 @@ data class RequestResponseLog<PrincipalLogT : PrincipalLog>(
     val status: NormalizedStatus?,
     /** Name of the [java.lang.Thread] handling the request. */
     val thread: String,
+    /**
+     * Non-null if the library user set a custom log level for the request log (e.g. by passing
+     * `severity` to [no.liflig.http4k.setup.errorResponse], or calling
+     * [no.liflig.http4k.setup.setLogLevel]).
+     *
+     * We include this here in order to use it in [LoggingFilter.logEntry] (where we don't have
+     * access to the original request), but mark it as [kotlinx.serialization.Transient] so it's not
+     * included in the log output (since the log level is already part of the log output).
+     */
+    @kotlinx.serialization.Transient val logLevel: LogLevel? = null,
 )
 
 @Serializable

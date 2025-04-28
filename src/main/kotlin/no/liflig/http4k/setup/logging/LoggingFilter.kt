@@ -106,6 +106,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
               throwable = RequestContext.getExceptionForLog(request),
               status = NormalizedStatus.from(response),
               thread = Thread.currentThread().name,
+              logLevel = RequestContext.getRequestLogLevel(request),
           )
 
       logHandler(logEntry)
@@ -192,7 +193,12 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
         return
       }
 
-      val logLevel = if (response.statusCode == 500) LogLevel.ERROR else LogLevel.INFO
+      val logLevel: LogLevel =
+          when {
+            entry.logLevel != null -> entry.logLevel
+            response.statusCode == 500 -> LogLevel.ERROR
+            else -> LogLevel.INFO
+          }
 
       log.at(logLevel, cause = entry.throwable) {
         field(

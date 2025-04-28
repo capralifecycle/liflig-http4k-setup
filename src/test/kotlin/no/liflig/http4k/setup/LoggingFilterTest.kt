@@ -31,6 +31,7 @@ import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.logging.ResponseLog
 import no.liflig.http4k.setup.normalization.NormalizedStatusCode
 import no.liflig.http4k.setup.testutils.useHttpServer
+import no.liflig.logging.LogLevel
 import org.http4k.core.Body
 import org.http4k.core.ContentType
 import org.http4k.core.Method
@@ -170,7 +171,7 @@ class LoggingFilterTest {
   }
 
   @Test
-  fun `errorResponse includes exception in log`() {
+  fun `errorResponse includes exception in log and sets log level`() {
     val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
@@ -181,13 +182,20 @@ class LoggingFilterTest {
         )
 
     val exception = Exception("test exception")
+    val logLevel = LogLevel.WARN
 
     val handler =
         RequestContextFilter() // Must have request context for attaching exception
             .then(RequestIdMdcFilter())
             .then(loggingFilter)
             .then { request ->
-              errorResponse(request, Status.NOT_FOUND, "Not found", cause = exception)
+              errorResponse(
+                  request,
+                  Status.NOT_FOUND,
+                  "Not found",
+                  cause = exception,
+                  severity = logLevel,
+              )
             }
 
     val response = handler(Request(Method.GET, "/some/url").body("request body"))
@@ -197,6 +205,7 @@ class LoggingFilterTest {
     logs shouldHaveSize 1
     val log = logs.first()
     log.throwable shouldBe exception
+    log.logLevel shouldBe logLevel
   }
 
   private val jsonStringBodyLens = Body.string(ContentType.APPLICATION_JSON).toLens()
