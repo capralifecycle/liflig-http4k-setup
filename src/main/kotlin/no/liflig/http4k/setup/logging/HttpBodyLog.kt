@@ -125,7 +125,7 @@ value class HttpBodyLog(val content: JsonElement) {
       return rawJson(bodyString, validJson = false)
     }
 
-    private val log = getLogger {}
+    private val log = getLogger()
 
     /**
      * The maximum size of a CloudWatch log event is 256 KiB.

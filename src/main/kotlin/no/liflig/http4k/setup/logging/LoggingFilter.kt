@@ -138,7 +138,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
   }
 
   companion object {
-    private val log = getLogger {}
+    private val log = getLogger()
 
     /**
      * Log handler that logs request/response data in a "requestInfo" log field. If the HTTP handler

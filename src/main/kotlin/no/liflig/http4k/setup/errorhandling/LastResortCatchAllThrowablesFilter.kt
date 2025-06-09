@@ -29,6 +29,6 @@ class LastResortCatchAllThrowablesFilter : Filter {
   }
 
   companion object {
-    private val log = getLogger {}
+    private val log = getLogger()
   }
 }
