@@ -271,11 +271,13 @@ class LoggingFilterTest {
   @Test
   fun `filter reparses JSON with newlines`() {
     // Newlines outside values
-    val requestBody = """{
+    val requestBody =
+        """{
   "type": "request"
 }"""
     // Newlines inside values
-    val responseBody = """{"type":"multiline
+    val responseBody =
+        """{"type":"multiline
 response"}"""
 
     val log = getServerLog(requestBody, responseBody)
