@@ -20,7 +20,7 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
@@ -28,10 +28,10 @@ jobs:
           java-version: "21.0.4"
           java-package: "jdk"
 
-      - uses: capralifecycle/actions-lib/check-runtime-dependencies@15d6e3ef41e608eb59e4c12c656018b832c0117c # v1.6.1
+      - uses: capralifecycle/actions-lib/check-runtime-dependencies@b4bb65b0ab41499f4829fe99c4b33b0b5a363562 # v1.6.2
 
       - name: cache mvn
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -50,7 +50,7 @@ jobs:
           }
           echo "major-version=$major_version" >> "$GITHUB_OUTPUT"
 
-      - uses: capralifecycle/actions-lib/generate-tag@15d6e3ef41e608eb59e4c12c656018b832c0117c # v1.6.1
+      - uses: capralifecycle/actions-lib/generate-tag@b4bb65b0ab41499f4829fe99c4b33b0b5a363562 # v1.6.2
         id: tag
         with:
           tag-prefix: "${{ steps.prep.outputs.major-version }}"
@@ -81,7 +81,7 @@ jobs:
             mvn -B -U verify
           fi
 
-      - uses: capralifecycle/actions-lib/slack-notify@15d6e3ef41e608eb59e4c12c656018b832c0117c # v1.6.1
+      - uses: capralifecycle/actions-lib/slack-notify@b4bb65b0ab41499f4829fe99c4b33b0b5a363562 # v1.6.2
         # NOTE: We only want to be notified about failures on the default branch
         if: ${{ failure() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         with:
