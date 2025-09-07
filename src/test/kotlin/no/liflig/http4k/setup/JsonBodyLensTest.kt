@@ -7,7 +7,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.MissingFieldException
 import kotlinx.serialization.Serializable
 import no.liflig.http4k.setup.context.RequestContext
 import no.liflig.http4k.setup.errorhandling.ErrorResponseBody
@@ -122,11 +121,11 @@ class JsonBodyLensTest {
     val (response, log) = getServerErrorResponse(bodyLens)
 
     // Verify that we got the JSON decoding exception we expect
-    val exception = log.throwable.shouldBeInstanceOf<MissingFieldException>()
+    val exception = log.throwable.shouldBeInstanceOf<InvalidJsonBody>()
 
     response.title shouldBe "Failed to parse example data"
     response.detail.shouldNotBeNull()
-    response.detail shouldBe exception.message
+    response.detail shouldBe exception.cause.shouldNotBeNull().message
   }
 
   @OptIn(ExperimentalSerializationApi::class)
@@ -141,11 +140,11 @@ class JsonBodyLensTest {
 
     val (response, log) = getServerErrorResponse(bodyLens)
 
-    val exception = log.throwable.shouldBeInstanceOf<MissingFieldException>()
+    val exception = log.throwable.shouldBeInstanceOf<InvalidJsonBody>()
     exception.message.shouldNotBeNull()
 
     response.title shouldBe "Failed to parse request body" // Default error response
-    response.detail shouldBe "Invalid example data (${exception.message})"
+    response.detail shouldBe "Invalid example data (${exception.cause.shouldNotBeNull().message})"
   }
 
   /**

@@ -5,6 +5,10 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.PrintStream
+import java.nio.ByteBuffer
 import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.testutils.useHttpServer
@@ -19,11 +23,8 @@ import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.then
+import org.http4k.lens.LensFailure
 import org.junit.jupiter.api.Test
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.io.PrintStream
-import java.nio.ByteBuffer
 
 class PublicExceptionTest {
   @Test
@@ -71,6 +72,38 @@ class PublicExceptionTest {
     responseBody.title shouldBe "Insufficient permissions"
     responseBody.detail shouldBe "This endpoint is admin-only"
     responseBody.status shouldBe 403
+    responseBody.instance shouldBe "/api/test"
+
+    logs.shouldHaveSize(1)
+    logs.first().throwable.shouldBeInstanceOf<PublicException>()
+  }
+
+  @Test
+  fun `PublicException as cause on LensFailure is used as response`() {
+    val logs: MutableList<RequestResponseLog<LifligUserPrincipalLog>> = mutableListOf()
+
+    val response =
+        useHttpServer(
+            httpHandler = { request ->
+              throw LensFailure(
+                  cause =
+                      PublicException(
+                          ErrorCode.BAD_REQUEST,
+                          publicMessage = "Invalid request body",
+                          publicDetail = "Missing required field 'id'",
+                      ),
+                  target = request,
+              )
+            },
+            logHandler = { log -> logs.add(log) },
+        ) { (httpClient, baseUrl) ->
+          httpClient(Request(Method.GET, "${baseUrl}/api/test"))
+        }
+
+    val responseBody = ErrorResponseBody.bodyLens(response)
+    responseBody.title shouldBe "Invalid request body"
+    responseBody.detail shouldBe "Missing required field 'id'"
+    responseBody.status shouldBe 400
     responseBody.instance shouldBe "/api/test"
 
     logs.shouldHaveSize(1)

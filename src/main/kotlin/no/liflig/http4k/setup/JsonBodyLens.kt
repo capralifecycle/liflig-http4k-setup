@@ -3,6 +3,8 @@ package no.liflig.http4k.setup
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import no.liflig.http4k.setup.context.RequestContext
+import no.liflig.publicexception.ErrorCode
+import no.liflig.publicexception.PublicException
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
@@ -86,16 +88,10 @@ fun <T> createJsonBodyLens(
                   try {
                     jsonInstance.decodeFromString(serializer, httpMessage.bodyString())
                   } catch (e: Exception) {
-                    /**
-                     * Will be caught by [org.http4k.filter.ServerFilters.CatchLensFailure] and
-                     * passed to our
-                     * [no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer],
-                     * which maps the exception to a 400 Bad Request response.
-                     */
                     throw LensFailure(
                         failures = jsonBodyLensMetas.map(::Invalid),
                         cause =
-                            JsonBodyLensFailure(
+                            InvalidJsonBody(
                                 errorResponse,
                                 errorResponseDetail,
                                 includeExceptionMessageInErrorResponse,
@@ -121,27 +117,44 @@ fun <T> createJsonBodyLens(
             },
     )
 
-internal class JsonBodyLensFailure(
-    val errorResponse: String,
+/**
+ * Extends [PublicException], so it will be mapped to an HTTP 400 Bad Request response in our
+ * [no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer].
+ */
+internal class InvalidJsonBody(
+    errorResponse: String,
     errorResponseDetail: String?,
     includeExceptionMessageInErrorResponse: Boolean,
-    override val cause: Exception,
-) : Exception() {
-  override val message =
-      errorResponse + (if (errorResponseDetail != null) "(${errorResponseDetail})" else "")
+    cause: Exception,
+) :
+    PublicException(
+        ErrorCode.BAD_REQUEST,
+        publicMessage = errorResponse,
+        publicDetail =
+            getPublicDetailForInvalidJsonBodyError(
+                errorResponseDetail,
+                cause,
+                includeExceptionMessageInErrorResponse,
+            ),
+        cause = cause,
+    )
 
-  val responseDetail: String? =
-      when {
-        errorResponseDetail != null -> {
-          if (includeExceptionMessageInErrorResponse && cause.message != null) {
-            "${errorResponseDetail} (${cause.message})"
-          } else {
-            errorResponseDetail
-          }
-        }
-        includeExceptionMessageInErrorResponse -> cause.message
-        else -> null
-      }
+private fun getPublicDetailForInvalidJsonBodyError(
+    errorResponseDetail: String?,
+    cuase: Exception,
+    includeExceptionMessageInErrorResponse: Boolean,
+): String? {
+  return if (errorResponseDetail != null) {
+    if (includeExceptionMessageInErrorResponse && cuase.message != null) {
+      "${errorResponseDetail} (${cuase.message})"
+    } else {
+      errorResponseDetail
+    }
+  } else if (includeExceptionMessageInErrorResponse) {
+    cuase.message
+  } else {
+    null
+  }
 }
 
 /** Copied from [org.http4k.lens.string]. */
