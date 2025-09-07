@@ -4,6 +4,7 @@ import no.liflig.http4k.setup.context.RequestContextFilter
 import no.liflig.http4k.setup.errorhandling.CatchUnhandledThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
 import no.liflig.http4k.setup.errorhandling.LastResortCatchAllThrowablesFilter
+import no.liflig.http4k.setup.errorhandling.PublicExceptionFilter
 import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.filters.http4kOpenTelemetryFilter
@@ -95,6 +96,7 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
                 ),
             )
             .then(CatchUnhandledThrowablesFilter())
+            .then(PublicExceptionFilter())
             .then(ServerFilters.http4kOpenTelemetryFilter())
             .then(CatchLensFailure(errorResponseRenderer::badRequest))
 
