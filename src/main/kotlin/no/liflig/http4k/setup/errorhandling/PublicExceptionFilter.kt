@@ -15,19 +15,12 @@ import org.http4k.core.Status
 
 /**
  * http4k filter that catches [PublicException]s and maps them to error responses (see
- * [PublicException.toErrorResponse]).
+ * [PublicException.toErrorResponse]). The exception will also be included in logs made by the
+ * [LoggingFilter][no.liflig.http4k.setup.logging.LoggingFilter].
  *
- * ### Usage
- *
- * Call `.then()` on your existing filters to add this to the stack:
- * ```
- * filters
- *     .then(PublicExceptionFilter())
- *     .then(/* Other filters or routes */)
- * ```
- *
- * This filter should be added _after_ more general exception-catching filters, so that
- * PublicExceptions are caught first.
+ * This filter is added to the core filter stack, so if you set up your API with
+ * [LifligBasicApiSetup.create][no.liflig.http4k.setup.LifligBasicApiSetup.create], then all
+ * `PublicException`s thrown in the context of your HTTP handlers will be caught by this filter.
  */
 class PublicExceptionFilter : Filter {
   override fun invoke(nextHandler: HttpHandler): HttpHandler {
