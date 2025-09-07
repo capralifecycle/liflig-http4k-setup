@@ -8,7 +8,7 @@
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder class="net.logstash.logback.encoder.LogstashEncoder">
       <!-- Writes object values from logging context as actual JSON (not escaped) -->
-      <mdcEntryWriter class="no.liflig.logging.LoggingContextJsonFieldWriter"/>
+      <mdcEntryWriter class="no.liflig.logging.output.logback.JsonContextFieldWriter"/>
     </encoder>
   </appender>
 

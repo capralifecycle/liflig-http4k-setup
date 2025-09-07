@@ -4,12 +4,16 @@ import java.nio.CharBuffer
 import java.nio.charset.CoderResult
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import no.liflig.http4k.setup.context.RequestContext
 import no.liflig.http4k.setup.logging.HttpBodyLog.Companion.MAX_LOGGED_BODY_SIZE
 import no.liflig.http4k.setup.logging.HttpBodyLog.Companion.truncateBody
+import no.liflig.logging.RawJson
 import no.liflig.logging.getLogger
 import no.liflig.logging.rawJson
 import org.http4k.core.Body
@@ -25,16 +29,11 @@ import org.http4k.lens.Header
  * log output (i.e. '\' added before every string quote). This prevents us from using log analysis
  * tools (such as CloudWatch) to query on fields in the body. To get around this, we use
  * [HttpBodyLog.from] to check if the request/response body was JSON. If the body is valid JSON, we
- * log it as-is, and if it's not, we log it as a string.
+ * log it as-is ([JsonBodyLog]), and if it's not, we log it as a string ([StringBodyLog]).
  */
-@Serializable
-@JvmInline
-value class HttpBodyLog(val content: JsonElement) {
-  override fun toString() = content.toString()
-
+@Serializable(with = HttpBodyLogSerializer::class)
+sealed interface HttpBodyLog {
   companion object {
-    internal fun raw(content: String) = HttpBodyLog(JsonPrimitive(content))
-
     /**
      * Extracts the body from the given request/response for logging. Ensures that the size of the
      * body does not exceed [MAX_LOGGED_BODY_SIZE], so it does not break CloudWatch.
@@ -51,7 +50,7 @@ value class HttpBodyLog(val content: JsonElement) {
         bodySize = bodyString.length.toLong()
 
         val jsonBody = tryGetJsonBodyForLog(httpMessage, bodyString)
-        val bodyLog = if (jsonBody != null) HttpBodyLog(jsonBody) else raw(bodyString)
+        val bodyLog = if (jsonBody != null) JsonBodyLog(jsonBody) else StringBodyLog(bodyString)
 
         return HttpBodyLogWithSize(bodyLog, size = bodySize)
       } catch (e: Exception) {
@@ -95,10 +94,10 @@ value class HttpBodyLog(val content: JsonElement) {
       // Required in order to show the output when converting to string.
       truncateOutput.flip()
 
-      return raw(truncateOutput.toString())
+      return StringBodyLog(truncateOutput.toString())
     }
 
-    private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): JsonElement? {
+    private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): RawJson? {
       /**
        * If this is a request and the body has been parsed as JSON, then we know it's valid JSON.
        *
@@ -143,7 +142,7 @@ value class HttpBodyLog(val content: JsonElement) {
      */
     internal const val TRUNCATED_BODY_SUFFIX = "<TRUNCATED>"
 
-    internal val FAILED_TO_READ_BODY_MESSAGE = raw("<FAILED TO READ BODY>")
+    internal val FAILED_TO_READ_BODY_MESSAGE = StringBodyLog("<FAILED TO READ BODY>")
 
     /**
      * When [excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog] or
@@ -151,7 +150,51 @@ value class HttpBodyLog(val content: JsonElement) {
      * called in a handler, this message is used instead. We use this instead of setting the body
      * field to null, to avoid confusion over why the body is not included in the request log.
      */
-    internal val BODY_EXCLUDED_MESSAGE = raw("<EXCLUDED>")
+    internal val BODY_EXCLUDED_MESSAGE = StringBodyLog("<EXCLUDED>")
+  }
+}
+
+/** See [HttpBodyLog]. */
+internal class JsonBodyLog(internal val body: RawJson) : HttpBodyLog {
+  override fun toString(): String = body.toString()
+
+  override fun equals(other: Any?): Boolean = other is JsonBodyLog && this.body == other.body
+
+  override fun hashCode(): Int = body.hashCode()
+}
+
+/** See [HttpBodyLog]. */
+internal class StringBodyLog(internal val body: String) : HttpBodyLog {
+  override fun toString(): String = body
+
+  override fun equals(other: Any?): Boolean = other is StringBodyLog && this.body == other.body
+
+  override fun hashCode(): Int = body.hashCode()
+}
+
+/** See [HttpBodyLog]. */
+internal object HttpBodyLogSerializer : KSerializer<HttpBodyLog> {
+  private val rawJsonSerializer = RawJson.serializer()
+  private val stringSerializer = String.serializer()
+
+  override val descriptor: SerialDescriptor
+    get() = rawJsonSerializer.descriptor
+
+  override fun serialize(encoder: Encoder, value: HttpBodyLog) {
+    when (value) {
+      is JsonBodyLog -> rawJsonSerializer.serialize(encoder, value.body)
+      is StringBodyLog -> stringSerializer.serialize(encoder, value.body)
+    }
+  }
+
+  override fun deserialize(decoder: Decoder): HttpBodyLog {
+    try {
+      val rawJson = rawJsonSerializer.deserialize(decoder)
+      return JsonBodyLog(rawJson)
+    } catch (_: Exception) {
+      val string = stringSerializer.deserialize(decoder)
+      return StringBodyLog(string)
+    }
   }
 }
 

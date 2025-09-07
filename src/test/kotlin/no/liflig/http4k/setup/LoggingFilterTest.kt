@@ -4,6 +4,7 @@ import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveLineCount
+import io.kotest.matchers.types.shouldBeInstanceOf
 import java.io.ByteArrayOutputStream
 import java.io.FileDescriptor
 import java.io.FileOutputStream
@@ -11,27 +12,28 @@ import java.io.InputStream
 import java.io.PrintStream
 import java.nio.ByteBuffer
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.liflig.http4k.setup.context.RequestContextFilter
 import no.liflig.http4k.setup.filters.RequestIdMdcFilter
 import no.liflig.http4k.setup.logging.HttpBodyLog
+import no.liflig.http4k.setup.logging.JsonBodyLog
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
 import no.liflig.http4k.setup.logging.RequestLog
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.logging.ResponseLog
+import no.liflig.http4k.setup.logging.StringBodyLog
 import no.liflig.http4k.setup.normalization.NormalizedStatusCode
 import no.liflig.http4k.setup.testutils.useHttpServer
 import no.liflig.logging.LogLevel
+import no.liflig.logging.RawJson
+import no.liflig.logging.rawJson
 import org.http4k.core.Body
 import org.http4k.core.ContentType
 import org.http4k.core.Method
@@ -102,11 +104,11 @@ class LoggingFilterTest {
     logs shouldHaveSize 1
     val log = logs.first()
     log.principal shouldBe CustomPrincipalLog
-    log.request.body shouldBe HttpBodyLog.raw("")
+    log.request.body shouldBe StringBodyLog("")
     log.request.method shouldBe "GET"
     log.request.size shouldBe 0
     log.request.uri shouldBe "/some/url"
-    log.response.body shouldBe HttpBodyLog.raw("hello world")
+    log.response.body shouldBe StringBodyLog("hello world")
     log.response.size shouldBe 11
     log.response.statusCode shouldBe 200
     log.status?.code shouldBe NormalizedStatusCode.OK
@@ -232,8 +234,8 @@ class LoggingFilterTest {
             responseBody = """{"type":"response"}""",
         )
 
-    log.request.body?.content shouldBe JsonUnquotedLiteral("""{"type":"request"}""")
-    log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"response"}""")
+    log.request.body.jsonBodyLog() shouldBe rawJson("""{"type":"request"}""", validJson = true)
+    log.response.body.jsonBodyLog() shouldBe rawJson("""{"type":"response"}""", validJson = true)
   }
 
   /** See [no.liflig.http4k.setup.markBodyAsValidJson]. */
@@ -248,8 +250,8 @@ class LoggingFilterTest {
             parseRequestBody = false,
         )
 
-    log.request.body?.content shouldBe JsonPrimitive("""{"type":"invalidJSON""")
-    log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"response"}""")
+    log.request.body.jsonBodyLog() shouldBe rawJson("""{"type":"invalidJSON""")
+    log.response.body.jsonBodyLog() shouldBe rawJson("""{"type":"response"}""", validJson = true)
   }
 
   @Test
@@ -261,7 +263,7 @@ class LoggingFilterTest {
             bodyLens = plainTextBodyLens,
         )
 
-    log.request.body?.content shouldBe JsonUnquotedLiteral("""{"type":"request"}""")
+    log.request.body.jsonBodyLog() shouldBe rawJson("""{"type":"request"}""", validJson = true)
   }
 
   /**
@@ -282,16 +284,17 @@ response"}"""
 
     val log = getServerLog(requestBody, responseBody)
 
-    log.request.body?.content shouldBe JsonUnquotedLiteral("""{"type":"request"}""")
-    log.response.body?.content shouldBe JsonUnquotedLiteral("""{"type":"multiline\nresponse"}""")
+    log.request.body.jsonBodyLog() shouldBe rawJson("""{"type":"request"}""", validJson = true)
+    log.response.body.jsonBodyLog() shouldBe
+        rawJson("""{"type":"multiline\nresponse"}""", validJson = true)
   }
 
   @Test
   fun `null JSON body parses to JsonNull`() {
     val log = getServerLog(requestBody = "null", responseBody = "null", parseRequestBody = false)
 
-    log.request.body?.content shouldBe JsonNull
-    log.response.body?.content shouldBe JsonNull
+    log.request.body.jsonBodyLog() shouldBe rawJson("null", validJson = true)
+    log.response.body.jsonBodyLog() shouldBe rawJson("null", validJson = true)
   }
 
   private val plainTextBodyLens = Body.string(ContentType.TEXT_PLAIN).toLens()
@@ -309,7 +312,7 @@ response"}"""
         )
 
     val expectedBodyLog =
-        HttpBodyLog.raw(
+        StringBodyLog(
             "A".repeat(HttpBodyLog.MAX_LOGGED_BODY_SIZE) + HttpBodyLog.TRUNCATED_BODY_SUFFIX,
         )
     log.request.body shouldBe expectedBodyLog
@@ -423,4 +426,9 @@ response"}"""
       }
 
   @Serializable object CustomPrincipalLog : PrincipalLog
+}
+
+/** Test utility for verifying that the given [HttpBodyLog] is a [JsonBodyLog]. */
+private fun HttpBodyLog?.jsonBodyLog(): RawJson {
+  return this.shouldBeInstanceOf<JsonBodyLog>().body
 }
