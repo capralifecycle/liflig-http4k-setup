@@ -18,7 +18,7 @@ import org.http4k.core.Status
  * [PublicException.toErrorResponse]). The exception will also be included in logs made by the
  * [LoggingFilter][no.liflig.http4k.setup.logging.LoggingFilter].
  *
- * This filter is added to the core filter stack, so if you set up your API with
+ * This filter is part of the core filter stack, so if you set up your API with
  * [LifligBasicApiSetup.create][no.liflig.http4k.setup.LifligBasicApiSetup.create], then all
  * `PublicException`s thrown in the context of your HTTP handlers will be caught by this filter.
  */
