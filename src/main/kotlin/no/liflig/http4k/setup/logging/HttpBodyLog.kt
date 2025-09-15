@@ -1,9 +1,5 @@
 package no.liflig.http4k.setup.logging
 
-import java.nio.CharBuffer
-import java.nio.charset.CoderResult
-import java.nio.charset.CodingErrorAction
-import java.nio.charset.StandardCharsets
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -11,12 +7,11 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import no.liflig.http4k.setup.context.RequestContext
+import no.liflig.http4k.setup.context.ResponseContext
 import no.liflig.http4k.setup.logging.HttpBodyLog.Companion.MAX_LOGGED_BODY_SIZE
-import no.liflig.http4k.setup.logging.HttpBodyLog.Companion.truncateBody
 import no.liflig.logging.RawJson
 import no.liflig.logging.getLogger
 import no.liflig.logging.rawJson
-import org.http4k.core.Body
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
@@ -41,87 +36,62 @@ sealed interface HttpBodyLog {
     fun from(httpMessage: HttpMessage): HttpBodyLogWithSize {
       var bodySize: Long? = null
       try {
+        /**
+         * If the body has passed through [no.liflig.http4k.setup.createJsonBodyLens], then we know
+         * it's valid JSON.
+         *
+         * See [no.liflig.http4k.setup.markBodyAsValidJson].
+         */
+        val validJsonBody: String? =
+            when (httpMessage) {
+              is Request -> RequestContext.getValidJsonRequestBody(httpMessage)
+              is Response -> ResponseContext.getValidJsonResponseBody(httpMessage)
+              else -> null
+            }
+        if (validJsonBody != null) {
+          bodySize = validJsonBody.length.toLong()
+          if (bodySize > MAX_LOGGED_BODY_SIZE) {
+            return HttpBodyLogWithSize(BODY_TOO_LARGE_MESSAGE, bodySize)
+          }
+          return HttpBodyLogWithSize(
+              // We can pass validJson = true here, since we know that the body has been
+              // successfully parsed as JSON if it passed through the JSON body lens
+              JsonBodyLog(rawJson(validJsonBody, validJson = true)),
+              bodySize,
+          )
+        }
+
+        // If body has been encoded (e.g. with gzip), then it doesn't make sense to log it
+        if (httpMessage.header("Content-Encoding") != null ||
+            httpMessage.header("Transfer-Encoding") != null) {
+          return HttpBodyLogWithSize(BODY_ENCODED_MESSAGE, size = null)
+        }
+
         bodySize = httpMessage.body.payload.limit().toLong()
         if (bodySize > MAX_LOGGED_BODY_SIZE) {
-          return HttpBodyLogWithSize(truncateBody(httpMessage.body), size = bodySize)
+          return HttpBodyLogWithSize(BODY_TOO_LARGE_MESSAGE, bodySize)
         }
 
         val bodyString = httpMessage.bodyString()
         bodySize = bodyString.length.toLong()
 
-        val jsonBody = tryGetJsonBodyForLog(httpMessage, bodyString)
-        val bodyLog = if (jsonBody != null) JsonBodyLog(jsonBody) else StringBodyLog(bodyString)
+        // If Content-Type is application/json, then we try to include it as JSON on the log
+        // (passing validJson = false to rawJson, since we can't be sure that the JSON is valid)
+        if (Header.CONTENT_TYPE(httpMessage)?.value == ContentType.APPLICATION_JSON.value) {
+          return HttpBodyLogWithSize(
+              JsonBodyLog(rawJson(bodyString, validJson = false)),
+              size = bodySize,
+          )
+        }
 
-        return HttpBodyLogWithSize(bodyLog, size = bodySize)
+        // If Content-Type is not JSON, then we just include it as a string
+        return HttpBodyLogWithSize(StringBodyLog(bodyString), size = bodySize)
       } catch (e: Exception) {
         // We don't want to fail the request just because we failed to read the body for logs. So we
         // just log the exception here and return a failure message.
         log.warn(e) { "Failed to read body for request/response log" }
         return HttpBodyLogWithSize(FAILED_TO_READ_BODY_MESSAGE, size = bodySize)
       }
-    }
-
-    private fun truncateBody(body: Body): HttpBodyLog {
-      /**
-       * Since we're dealing with large bodies here, we want to copy as little as possible. To
-       * achieve that, we:
-       * 1. Create a slice of the body's payload, with our max log size. This creates a view of the
-       *    payload, without copying the underlying buffer.
-       * 2. Allocate a CharBuffer with space for our max log size and our <TRUNCATED> suffix. We
-       *    need a CharBuffer to convert the body payload to a string, and can avoid an extra copy
-       *    by pre-allocating space for the whole payload + suffix.
-       * 3. Use [java.nio.charset.CharsetDecoder.decode] to decode the body payload into our
-       *    CharBuffer.
-       */
-      val truncateInput = body.payload.slice(0, MAX_LOGGED_BODY_SIZE)
-      val truncateOutput = CharBuffer.allocate(MAX_LOGGED_BODY_SIZE + TRUNCATED_BODY_SUFFIX.length)
-
-      val result =
-          StandardCharsets.UTF_8.newDecoder()
-              .onMalformedInput(CodingErrorAction.REPLACE)
-              .onUnmappableCharacter(CodingErrorAction.REPLACE)
-              .decode(truncateInput, truncateOutput, false)
-      // We expect the result to be UNDERFLOW, since we reserved extra space for
-      // TRUNCATED_BODY_SUFFIX. Any other result is likely an error.
-      if (result != CoderResult.UNDERFLOW) {
-        // Will be caught and logged by HttpBodyLog.from
-        throw IllegalStateException("Failed to decode truncated body (reason: ${result})")
-      }
-
-      truncateOutput.append(TRUNCATED_BODY_SUFFIX)
-
-      // Flip advances the limit of the CharBuffer to where we last wrote.
-      // Required in order to show the output when converting to string.
-      truncateOutput.flip()
-
-      return StringBodyLog(truncateOutput.toString())
-    }
-
-    private fun tryGetJsonBodyForLog(httpMessage: HttpMessage, bodyString: String): RawJson? {
-      /**
-       * If this is a request and the body has been parsed as JSON, then we know it's valid JSON.
-       *
-       * See [no.liflig.http4k.setup.markBodyAsValidJson].
-       */
-      if (httpMessage is Request && RequestContext.isRequestBodyValidJson(httpMessage)) {
-        return rawJson(bodyString, validJson = true)
-      }
-
-      // If Content-Type is not JSON (and we have not already parsed it as JSON), then we don't try
-      // to parse it here
-      if (Header.CONTENT_TYPE(httpMessage)?.value != ContentType.APPLICATION_JSON.value) {
-        return null
-      }
-
-      // If this is a response (from our server) and the Content-Type is JSON, we assume that we've
-      // sent valid JSON
-      if (httpMessage is Response) {
-        return rawJson(bodyString, validJson = true)
-      }
-
-      // Otherwise, we have to pass validJson = false, so rawJson will check if the body is actually
-      // valid JSON
-      return rawJson(bodyString, validJson = false)
     }
 
     private val log = getLogger()
@@ -134,15 +104,13 @@ sealed interface HttpBodyLog {
      *
      * We limit the body size we store to stay below this limit.
      */
-    internal const val MAX_LOGGED_BODY_SIZE = 50 * 1024
+    internal const val MAX_LOGGED_BODY_SIZE = 128 * 1024
 
-    /**
-     * When a request/response body exceeds [MAX_LOGGED_BODY_SIZE], it is truncated to avoid
-     * breaking CloudWatch, and this suffix is added (see [truncateBody]).
-     */
-    internal const val TRUNCATED_BODY_SUFFIX = "<TRUNCATED>"
+    internal val BODY_TOO_LARGE_MESSAGE = StringBodyLog("<Body too large for log>")
 
-    internal val FAILED_TO_READ_BODY_MESSAGE = StringBodyLog("<FAILED TO READ BODY>")
+    internal val FAILED_TO_READ_BODY_MESSAGE = StringBodyLog("<Failed to read body>")
+
+    internal val BODY_ENCODED_MESSAGE = StringBodyLog("<Encoded>")
 
     /**
      * When [excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog] or

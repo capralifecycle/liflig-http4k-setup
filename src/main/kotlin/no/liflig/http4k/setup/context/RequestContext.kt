@@ -2,7 +2,7 @@
 
 package no.liflig.http4k.setup.context
 
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import no.liflig.http4k.setup.context.RequestContext.Companion.readRequestContext
@@ -40,10 +40,10 @@ import org.http4k.lens.RequestKey
 internal class RequestContext {
   private val lock = ReentrantLock()
 
+  private var exceptionForLog: Throwable? = null
   private var excludeRequestBodyFromLog: Boolean = false
   private var excludeResponseBodyFromLog: Boolean = false
-  private var requestBodyIsValidJson: Boolean = false
-  private var exceptionForLog: Throwable? = null
+  private var validJsonRequestBody: String? = null
   private var requestLogLevel: LogLevel? = null
 
   internal companion object {
@@ -55,8 +55,8 @@ internal class RequestContext {
       return readRequestContext(request, defaultValue = false) { it.excludeResponseBodyFromLog }
     }
 
-    internal fun isRequestBodyValidJson(request: Request): Boolean {
-      return readRequestContext(request, defaultValue = false) { it.requestBodyIsValidJson }
+    internal fun getValidJsonRequestBody(request: Request): String? {
+      return readRequestContext(request, defaultValue = null) { it.validJsonRequestBody }
     }
 
     internal fun getExceptionForLog(request: Request): Throwable? {
@@ -75,8 +75,8 @@ internal class RequestContext {
       updateRequestContext(request) { it.excludeResponseBodyFromLog = true }
     }
 
-    internal fun markRequestBodyAsValidJson(request: Request) {
-      updateRequestContext(request) { it.requestBodyIsValidJson = true }
+    internal fun markRequestBodyAsValidJson(request: Request, requestBody: String) {
+      updateRequestContext(request) { it.validJsonRequestBody = requestBody }
     }
 
     internal fun setExceptionForLog(request: Request, exception: Throwable) {

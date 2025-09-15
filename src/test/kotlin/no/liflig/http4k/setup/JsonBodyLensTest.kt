@@ -3,12 +3,14 @@ package no.liflig.http4k.setup
 import io.kotest.assertions.throwables.shouldThrowAny
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import no.liflig.http4k.setup.context.RequestContext
+import no.liflig.http4k.setup.context.ResponseContext
 import no.liflig.http4k.setup.errorhandling.ErrorResponseBody
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.testutils.useHttpServer
@@ -52,18 +54,51 @@ class JsonBodyLensTest {
   }
 
   @Test
-  fun `lens sets requestBodyIsValidJson on success`() {
-    useServerRequest("""{"id":3,"name":"test"}""") { request ->
+  fun `lens sets validJsonRequestBody on success`() {
+    val requestBody = """{"id":3,"name":"test"}"""
+    useServerRequest(requestBody) { request ->
       ExampleDto.bodyLens(request)
-      RequestContext.isRequestBodyValidJson(request) shouldBe true
+      RequestContext.getValidJsonRequestBody(request).shouldBe(requestBody)
     }
   }
 
   @Test
-  fun `lens does not set requestBodyIsValidJson on failure`() {
+  fun `lens does not set validJsonRequestBody on failure`() {
     useServerRequest("""{"name":"no ID"}""") { request ->
       shouldThrowAny { ExampleDto.bodyLens(request) }
-      RequestContext.isRequestBodyValidJson(request) shouldBe false
+      RequestContext.getValidJsonRequestBody(request).shouldBeNull()
+    }
+  }
+
+  @Test
+  fun `lens sets validJsonResponseBody on success`() {
+    useHttpServer(
+        httpHandler = {
+          val responseBody = ExampleDto(id = 1000, name = "Test")
+          val response = Response(Status.OK).with(ExampleDto.bodyLens.of(responseBody))
+
+          ResponseContext.getValidJsonResponseBody(response)
+              .shouldBe("""{"id":1000,"name":"Test"}""")
+
+          response
+        },
+    ) { (httpClient, baseUrl) ->
+      val response = httpClient(Request(Method.POST, baseUrl))
+      withClue({ response.bodyString() }) { response.status shouldBe Status.OK }
+    }
+  }
+
+  @Test
+  fun `validJsonResponseBody is null by default`() {
+    useHttpServer(
+        httpHandler = {
+          val response = Response(Status.OK)
+          ResponseContext.getValidJsonResponseBody(response).shouldBeNull()
+          response
+        },
+    ) { (httpClient, baseUrl) ->
+      val response = httpClient(Request(Method.POST, baseUrl))
+      response.status shouldBe Status.OK
     }
   }
 

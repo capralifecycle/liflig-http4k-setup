@@ -3,11 +3,13 @@ package no.liflig.http4k.setup
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import no.liflig.http4k.setup.context.RequestContext
+import no.liflig.http4k.setup.context.ResponseContext
 import no.liflig.publicexception.ErrorCode
 import no.liflig.publicexception.PublicException
 import org.http4k.core.ContentType
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
+import org.http4k.core.Response
 import org.http4k.core.with
 import org.http4k.lens.BiDiBodyLens
 import org.http4k.lens.Header
@@ -84,19 +86,23 @@ fun <T> createJsonBodyLens(
         contentType = contentType,
         get =
             fun(httpMessage: HttpMessage): T {
-              val jsonBody =
+              val jsonBody = httpMessage.bodyString()
+              val parsedBody =
                   try {
-                    jsonInstance.decodeFromString(serializer, httpMessage.bodyString())
+                    jsonInstance.decodeFromString(serializer, jsonBody)
                   } catch (e: Exception) {
                     throw LensFailure(
                         failures = jsonBodyLensMetas.map(::Invalid),
                         cause =
-                            InvalidJsonBody(
-                                errorResponse,
-                                errorResponseDetail,
-                                includeExceptionMessageInErrorResponse,
-                                cause = e,
-                            ),
+                            // If a serializer throws a PublicException, then we use that as the
+                            // failure cause - otherwise, we construct an InvalidJsonBody exception
+                            e as? PublicException
+                                ?: InvalidJsonBody(
+                                    errorResponse,
+                                    errorResponseDetail,
+                                    includeExceptionMessageInErrorResponse,
+                                    cause = e,
+                                ),
                         target = httpMessage,
                         message = e.message ?: "<unknown>",
                     )
@@ -104,16 +110,22 @@ fun <T> createJsonBodyLens(
 
               /** See [markBodyAsValidJson]. */
               if (httpMessage is Request) {
-                httpMessage.markBodyAsValidJson()
+                RequestContext.markRequestBodyAsValidJson(httpMessage, requestBody = jsonBody)
               }
 
-              return jsonBody
+              return parsedBody
             },
         setLens =
             fun(jsonBody: T, httpMessage: HttpMessage): HttpMessage {
-              return httpMessage
-                  .with(Header.CONTENT_TYPE of contentType)
-                  .body(jsonInstance.encodeToString(serializer, jsonBody))
+              val serializedJsonBody = jsonInstance.encodeToString(serializer, jsonBody)
+
+              var httpMessage = httpMessage
+              if (httpMessage is Response) {
+                httpMessage =
+                    ResponseContext.markResponseBodyAsValidJson(httpMessage, serializedJsonBody)
+              }
+
+              return httpMessage.with(Header.CONTENT_TYPE of contentType).body(serializedJsonBody)
             },
     )
 
@@ -141,17 +153,17 @@ internal class InvalidJsonBody(
 
 private fun getPublicDetailForInvalidJsonBodyError(
     errorResponseDetail: String?,
-    cuase: Exception,
+    cause: Exception,
     includeExceptionMessageInErrorResponse: Boolean,
 ): String? {
   return if (errorResponseDetail != null) {
-    if (includeExceptionMessageInErrorResponse && cuase.message != null) {
-      "${errorResponseDetail} (${cuase.message})"
+    if (includeExceptionMessageInErrorResponse && cause.message != null) {
+      "${errorResponseDetail} (${cause.message})"
     } else {
       errorResponseDetail
     }
   } else if (includeExceptionMessageInErrorResponse) {
-    cuase.message
+    cause.message
   } else {
     null
   }
@@ -187,5 +199,5 @@ private val jsonBodyLensMetas =
  *       body has been parsed as valid JSON some other way, you can call this function yourself.
  */
 fun Request.markBodyAsValidJson() {
-  RequestContext.markRequestBodyAsValidJson(this)
+  RequestContext.markRequestBodyAsValidJson(this, requestBody = this.bodyString())
 }
