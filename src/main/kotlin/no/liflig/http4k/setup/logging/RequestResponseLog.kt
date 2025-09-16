@@ -7,7 +7,7 @@
 package no.liflig.http4k.setup.logging
 
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import no.liflig.http4k.setup.logging.json.InstantSerializer
@@ -15,14 +15,6 @@ import no.liflig.http4k.setup.logging.json.ThrowableSerializer
 import no.liflig.http4k.setup.logging.json.UUIDSerializer
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.logging.LogLevel
-
-/**
- * Represents a "principal" (user, or requesting entity) that will be logged.
- *
- * This special logging view of a principal should exclude identifiable information like names,
- * email, etc.
- */
-interface PrincipalLog
 
 @Serializable
 data class RequestResponseLog<PrincipalLogT : PrincipalLog>(

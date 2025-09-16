@@ -30,6 +30,8 @@ import no.liflig.http4k.setup.logging.RequestLog
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.logging.ResponseLog
 import no.liflig.http4k.setup.logging.StringBodyLog
+import no.liflig.http4k.setup.logging.attachPrincipalLog
+import no.liflig.http4k.setup.logging.getPrincipalLog
 import no.liflig.http4k.setup.normalization.NormalizedStatusCode
 import no.liflig.http4k.setup.testutils.useHttpServer
 import no.liflig.logging.LogLevel
@@ -549,6 +551,36 @@ response"}"""
     // unintentionally.
     json.jsonObject["logger_name"]!!.jsonPrimitive.contentOrNull shouldBe
         "no.liflig.http4k.setup.logging.LoggingFilter"
+  }
+
+  @Test
+  fun `attachPrincipalLog and getPrincipalLog allow setting and extracting PrincipalLog`() {
+    @Serializable data class ExamplePrincipalLog(val name: String) : PrincipalLog
+
+    val logs: MutableList<RequestResponseLog<ExamplePrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            principalLog = { request -> request.getPrincipalLog() as? ExamplePrincipalLog },
+            logHandler = { log -> logs.add(log) },
+        )
+
+    val request = Request(Method.GET, "/some/url")
+
+    val handler =
+        RequestContextFilter() // Logging filter uses request context
+            .then(RequestIdMdcFilter())
+            .then(loggingFilter)
+            .then { request ->
+              request.attachPrincipalLog(ExamplePrincipalLog(name = "Test McTest"))
+              Response(Status.OK)
+            }
+
+    val response = handler(request)
+    response.status shouldBe Status.OK
+
+    val log = logs.shouldHaveSize(1).first()
+    log.principal.shouldBe(ExamplePrincipalLog(name = "Test McTest"))
   }
 
   private fun getServerLog(
