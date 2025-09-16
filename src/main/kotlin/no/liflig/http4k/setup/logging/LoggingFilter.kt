@@ -15,6 +15,7 @@ import org.http4k.core.Headers
 import org.http4k.core.HttpHandler
 import org.http4k.core.HttpMessage
 import org.http4k.core.Request
+import org.http4k.core.Response
 import org.http4k.lens.Header
 
 /** Filter to handle request logging. */
@@ -28,10 +29,33 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
      */
     private val logHandler: (RequestResponseLog<PrincipalLogT>) -> Unit,
     /**
-     * Set to true to log both request and response bodies. Only logs white-listed content types in
+     * Set to true to log both request and response bodies. Only logs content types listed in
      * [contentTypesToLog].
+     *
+     * If you only want to log bodies for unsuccessful responses, use [includeBodyOnError] instead.
+     *
+     * Body logging can be overridden on a per-request basis by calling extension functions provided
+     * by this library. If you've set `logHttpBody = false`, you can enable body logging for
+     * specific endpoints by calling:
+     * - [Request.includeRequestBodyInLog][no.liflig.http4k.setup.includeRequestBodyInLog]
+     * - [Request.includeResponseBodyInLog][no.liflig.http4k.setup.includeResponseBodyInLog]
+     *
+     * If you've set `logHttpBody = true`, you can disable body logging for specific endpoints by
+     * calling:
+     * - [Request.excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog]
+     * - [Request.excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog]
      */
     private val includeBody: Boolean = false,
+    /**
+     * Set to true to log request and response bodies only when the API responds with an
+     * unsuccessful (non-2XX) response status.
+     *
+     * You can exclude body logging on a per-request basis (even in case of error), by calling
+     * extension functions provided by this library:
+     * - [Request.excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog]
+     * - [Request.excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog]
+     */
+    private val includeBodyOnError: Boolean = false,
     /**
      * Content-Type header values to white-list for logging. Requests or responses with different
      * types will not have their body logged.
@@ -62,21 +86,23 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
       val endTimeInstant = Instant.now()
       val duration = Duration.ofNanos(System.nanoTime() - startTime)
 
+      val loggedException = RequestContext.getExceptionForLog(request)
+
       val requestBody =
-          when {
-            !includeBody -> null
-            !request.shouldLogContentType(contentTypesToLog) -> null
-            RequestContext.isRequestBodyExcludedFromLog(request) ->
-                HttpBodyLogWithSize(HttpBodyLog.BODY_EXCLUDED_MESSAGE, size = null)
-            else -> HttpBodyLog.from(request)
+          if (shouldLogBody(
+              httpMessage = request,
+              request = request,
+              response = response,
+          )) {
+            HttpBodyLog.from(request)
+          } else {
+            null
           }
       val responseBody =
-          when {
-            !includeBody -> null
-            !response.shouldLogContentType(contentTypesToLog) -> null
-            RequestContext.isResponseBodyExcludedFromLog(request) ->
-                HttpBodyLogWithSize(HttpBodyLog.BODY_EXCLUDED_MESSAGE, size = null)
-            else -> HttpBodyLog.from(response)
+          if (shouldLogBody(httpMessage = response, request = request, response = response)) {
+            HttpBodyLog.from(response)
+          } else {
+            null
           }
 
       val logEntry =
@@ -103,7 +129,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
                   ),
               principal = principalLog(request),
               durationMs = duration.toMillis(),
-              throwable = RequestContext.getExceptionForLog(request),
+              throwable = loggedException,
               status = NormalizedStatus.from(response),
               thread = Thread.currentThread().name,
               logLevel = RequestContext.getRequestLogLevel(request),
@@ -112,6 +138,80 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
       logHandler(logEntry)
 
       response
+    }
+  }
+
+  @Suppress("RedundantIf") // We want to make boolean logic here as explicit as possible
+  private fun shouldLogBody(
+      httpMessage: HttpMessage,
+      request: Request,
+      response: Response,
+  ): Boolean {
+    if (!shouldLogContentType(httpMessage)) {
+      return false
+    }
+
+    /**
+     * If the user has enabled [includeBodyOnError], then we log the request/response body if we
+     * returned an unsuccessful response.
+     */
+    if (includeBodyOnError) {
+      if (!response.status.successful) {
+        if (isBodyExcludedFromLog(httpMessage, request)) {
+          return false
+        }
+        return true
+      }
+    }
+
+    if (includeBody) {
+      // If user has set bodies to be logged by default, then we check if it's been overridden to
+      // be excluded from the log for this request
+      if (isBodyExcludedFromLog(httpMessage, request)) {
+        return false
+      }
+      return true
+    } else {
+      // If user has set bodies to not be logged by default, then we check if it's been overridden
+      // to be included in the log for this request
+      if (isBodyIncludedInLog(httpMessage, request)) {
+        return true
+      }
+      return false
+    }
+  }
+
+  /**
+   * Checks if the request/response's Content-Type is among our allowed content-types for logging.
+   */
+  private fun shouldLogContentType(httpMessage: HttpMessage): Boolean {
+    val contentType = Header.CONTENT_TYPE(httpMessage)
+    return contentType == null || contentTypesToLog.any { contentType.value == it.value }
+  }
+
+  /**
+   * The user can set `includeBody` to true on the `LoggingFilter`, but override it on a
+   * per-endpoint basis with [no.liflig.http4k.setup.excludeRequestBodyFromLog] /
+   * [no.liflig.http4k.setup.excludeResponseBodyFromLog].
+   */
+  private fun isBodyExcludedFromLog(httpMessage: HttpMessage, request: Request): Boolean {
+    return if (httpMessage === request) {
+      RequestContext.isRequestBodyExcludedFromLog(request)
+    } else {
+      RequestContext.isResponseBodyExcludedFromLog(request)
+    }
+  }
+
+  /**
+   * The user can set `includeBody` to false on the `LoggingFilter`, but override it on a
+   * per-endpoint basis with [no.liflig.http4k.setup.includeRequestBodyInLog] /
+   * [no.liflig.http4k.setup.includeResponseBodyInLog].
+   */
+  private fun isBodyIncludedInLog(httpMessage: HttpMessage, request: Request): Boolean {
+    return if (httpMessage === request) {
+      RequestContext.isRequestBodyIncludedInLog(request)
+    } else {
+      RequestContext.isResponseBodyIncludedInLog(request)
     }
   }
 
@@ -129,13 +229,6 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
                 },
         )
       }
-
-  // Only log specific content types.
-  // Include lack of content type as it is usually due to an error.
-  private fun HttpMessage.shouldLogContentType(contentTypesToLog: List<ContentType>): Boolean {
-    val contentType = Header.CONTENT_TYPE(this)
-    return contentType == null || contentTypesToLog.any { contentType.value == it.value }
-  }
 
   companion object {
     private val log = getLogger()

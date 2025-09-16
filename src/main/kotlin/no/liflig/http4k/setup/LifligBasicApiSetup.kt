@@ -41,13 +41,33 @@ import org.http4k.filter.ServerFilters.CatchLensFailure
 class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
     private val logHandler: (RequestResponseLog<PrincipalLogT>) -> Unit,
     /**
-     * Set to true to include request and response bodies on HTTP logs. If enabled, only logs bodies
-     * for content types in [contentTypesToLog].
+     * Set to true to log both request and response bodies. Only logs content types listed in
+     * [contentTypesToLog].
      *
-     * Can be overridden on a per-request basis (see [excludeRequestBodyFromLog] and
-     * [excludeResponseBodyFromLog]).
+     * If you only want to log bodies for unsuccessful responses, use [logHttpBodyOnError] instead.
+     *
+     * Body logging can be overridden on a per-request basis by calling extension functions provided
+     * by this library. If you've set `logHttpBody = false`, you can enable body logging for
+     * specific endpoints by calling:
+     * - [Request.includeRequestBodyInLog][no.liflig.http4k.setup.includeRequestBodyInLog]
+     * - [Request.includeResponseBodyInLog][no.liflig.http4k.setup.includeResponseBodyInLog]
+     *
+     * If you've set `logHttpBody = true`, you can disable body logging for specific endpoints by
+     * calling:
+     * - [Request.excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog]
+     * - [Request.excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog]
      */
     private val logHttpBody: Boolean = false,
+    /**
+     * Set to true to log request and response bodies only when the API responds with an
+     * unsuccessful (non-2XX) response status.
+     *
+     * You can exclude body logging on a per-request basis (even in case of error), by calling
+     * extension functions provided by this library:
+     * - [Request.excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog]
+     * - [Request.excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog]
+     */
+    private val logHttpBodyOnError: Boolean = false,
     /** If [logHttpBody] is set to true, only these content types will be logged. */
     private val contentTypesToLog: List<ContentType> =
         listOf(
@@ -91,6 +111,7 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
                     principalLog = principalLog,
                     logHandler = logHandler,
                     includeBody = logHttpBody,
+                    includeBodyOnError = logHttpBodyOnError,
                     contentTypesToLog = contentTypesToLog,
                     redactedHeaders = redactedHeaders,
                 ),

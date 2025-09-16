@@ -40,13 +40,28 @@ import org.http4k.lens.RequestKey
 internal class RequestContext {
   private val lock = ReentrantLock()
 
+  /** See [no.liflig.http4k.setup.errorResponse]. */
   private var exceptionForLog: Throwable? = null
+
+  /** See [no.liflig.http4k.setup.includeRequestBodyInLog]. */
+  private var includeRequestBodyInLog: Boolean = false
+  /** See [no.liflig.http4k.setup.includeResponseBodyInLog]. */
+  private var includeResponseBodyInLog: Boolean = false
+
+  /** See [no.liflig.http4k.setup.excludeRequestBodyFromLog]. */
   private var excludeRequestBodyFromLog: Boolean = false
+  /** See [no.liflig.http4k.setup.excludeResponseBodyFromLog]. */
   private var excludeResponseBodyFromLog: Boolean = false
+
   private var validJsonRequestBody: String? = null
+
   private var requestLogLevel: LogLevel? = null
 
   internal companion object {
+    internal fun getExceptionForLog(request: Request): Throwable? {
+      return readRequestContext(request, defaultValue = null) { it.exceptionForLog }
+    }
+
     internal fun isRequestBodyExcludedFromLog(request: Request): Boolean {
       return readRequestContext(request, defaultValue = false) { it.excludeRequestBodyFromLog }
     }
@@ -55,16 +70,24 @@ internal class RequestContext {
       return readRequestContext(request, defaultValue = false) { it.excludeResponseBodyFromLog }
     }
 
+    internal fun isRequestBodyIncludedInLog(request: Request): Boolean {
+      return readRequestContext(request, defaultValue = false) { it.includeRequestBodyInLog }
+    }
+
+    internal fun isResponseBodyIncludedInLog(request: Request): Boolean {
+      return readRequestContext(request, defaultValue = false) { it.includeResponseBodyInLog }
+    }
+
     internal fun getValidJsonRequestBody(request: Request): String? {
       return readRequestContext(request, defaultValue = null) { it.validJsonRequestBody }
     }
 
-    internal fun getExceptionForLog(request: Request): Throwable? {
-      return readRequestContext(request, defaultValue = null) { it.exceptionForLog }
-    }
-
     internal fun getRequestLogLevel(request: Request): LogLevel? {
       return readRequestContext(request, defaultValue = null) { it.requestLogLevel }
+    }
+
+    internal fun setExceptionForLog(request: Request, exception: Throwable) {
+      updateRequestContext(request) { it.exceptionForLog = exception }
     }
 
     internal fun excludeRequestBodyFromLog(request: Request) {
@@ -75,12 +98,16 @@ internal class RequestContext {
       updateRequestContext(request) { it.excludeResponseBodyFromLog = true }
     }
 
-    internal fun markRequestBodyAsValidJson(request: Request, requestBody: String) {
-      updateRequestContext(request) { it.validJsonRequestBody = requestBody }
+    internal fun includeRequestBodyInLog(request: Request) {
+      updateRequestContext(request) { it.includeRequestBodyInLog = true }
     }
 
-    internal fun setExceptionForLog(request: Request, exception: Throwable) {
-      updateRequestContext(request) { it.exceptionForLog = exception }
+    internal fun includeResponseBodyInLog(request: Request) {
+      updateRequestContext(request) { it.includeResponseBodyInLog = true }
+    }
+
+    internal fun markRequestBodyAsValidJson(request: Request, requestBody: String) {
+      updateRequestContext(request) { it.validJsonRequestBody = requestBody }
     }
 
     internal fun setRequestLogLevel(request: Request, level: LogLevel) {

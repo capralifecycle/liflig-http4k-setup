@@ -2,6 +2,7 @@ package no.liflig.http4k.setup
 
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveLineCount
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -140,7 +141,7 @@ class LoggingFilterTest {
   }
 
   @Test
-  fun `excludeRequestBodyFromLog and excludeResponseBodyFromLog exclude bodies`() {
+  fun `excludeRequestBodyFromLog and excludeResponseBodyFromLog exclude bodies from log`() {
     val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
 
     val loggingFilter =
@@ -168,8 +169,182 @@ class LoggingFilterTest {
 
     logs shouldHaveSize 1
     val log = logs.first()
-    log.request.body shouldBe HttpBodyLog.BODY_EXCLUDED_MESSAGE
-    log.response.body shouldBe HttpBodyLog.BODY_EXCLUDED_MESSAGE
+    log.request.body.shouldBeNull()
+    log.response.body.shouldBeNull()
+  }
+
+  @Test
+  fun `excludeRequestAndResponseBodyFromLog excludes bodies from log`() {
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = true,
+            principalLog = { CustomPrincipalLog },
+            logHandler = { log -> logs.add(log) },
+        )
+
+    val request = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body"))
+
+    val handler =
+        RequestContextFilter() // Must have request context to set the body exclusion flags
+            .then(RequestIdMdcFilter())
+            .then(loggingFilter)
+            .then { receivedRequest ->
+              receivedRequest.excludeRequestAndResponseBodyFromLog()
+              Response(Status.OK).with(plainTextBodyLens.of("hello world"))
+            }
+
+    val response = handler(request)
+
+    response.status shouldBe Status.OK
+
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.request.body.shouldBeNull()
+    log.response.body.shouldBeNull()
+  }
+
+  @Test
+  fun `includeRequestBodyInLog and includeResponseBodyInLog include bodies in log`() {
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = false,
+            principalLog = { CustomPrincipalLog },
+            logHandler = { log -> logs.add(log) },
+        )
+
+    val request = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body"))
+
+    val handler =
+        RequestContextFilter() // Must have request context to set the body inclusion flags
+            .then(RequestIdMdcFilter())
+            .then(loggingFilter)
+            .then { receivedRequest ->
+              receivedRequest.includeRequestBodyInLog()
+              receivedRequest.includeResponseBodyInLog()
+              Response(Status.OK).with(plainTextBodyLens.of("response body"))
+            }
+
+    val response = handler(request)
+
+    response.status shouldBe Status.OK
+
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.request.body.shouldBe(StringBodyLog("request body"))
+    log.response.body.shouldBe(StringBodyLog("response body"))
+  }
+
+  @Test
+  fun `includeRequestAndResponseBodyInLog includes bodies in log`() {
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = false,
+            principalLog = { CustomPrincipalLog },
+            logHandler = { log -> logs.add(log) },
+        )
+
+    val request = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body"))
+
+    val handler =
+        RequestContextFilter() // Must have request context to set the body inclusion flags
+            .then(RequestIdMdcFilter())
+            .then(loggingFilter)
+            .then { receivedRequest ->
+              receivedRequest.includeRequestAndResponseBodyInLog()
+              Response(Status.OK).with(plainTextBodyLens.of("response body"))
+            }
+
+    val response = handler(request)
+
+    response.status shouldBe Status.OK
+
+    logs shouldHaveSize 1
+    val log = logs.first()
+    log.request.body.shouldBe(StringBodyLog("request body"))
+    log.response.body.shouldBe(StringBodyLog("response body"))
+  }
+
+  @Test
+  fun `includeBodyOnError logs bodies on error response`() {
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = false,
+            includeBodyOnError = true,
+            principalLog = { CustomPrincipalLog },
+            logHandler = { log -> logs.add(log) },
+        )
+
+    val request1 = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body 1"))
+    val request2 = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body 2"))
+
+    val handler =
+        RequestContextFilter() // Need request context to check body exclusion flags
+            .then(RequestIdMdcFilter())
+            .then(loggingFilter)
+            .then { receivedRequest ->
+              if (receivedRequest.bodyString() == "request body 1") {
+                Response(Status.BAD_REQUEST).with(plainTextBodyLens.of("response body 1"))
+              } else {
+                Response(Status.OK).with(plainTextBodyLens.of("response body 2"))
+              }
+            }
+
+    val response1 = handler(request1)
+    val response2 = handler(request2)
+
+    response1.status shouldBe Status.BAD_REQUEST
+    response2.status shouldBe Status.OK
+
+    logs.shouldHaveSize(2)
+    val (log1, log2) = logs
+
+    log1.request.body.shouldBe(StringBodyLog("request body 1"))
+    log1.response.body.shouldBe(StringBodyLog("response body 1"))
+
+    log2.request.body.shouldBeNull()
+    log2.response.body.shouldBeNull()
+  }
+
+  @Test
+  fun `excludeRequestBodyFromLog and excludeResponseBodyFromLog can override includeBodyOnError`() {
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            includeBody = false,
+            includeBodyOnError = true,
+            principalLog = { CustomPrincipalLog },
+            logHandler = { log -> logs.add(log) },
+        )
+
+    val request = Request(Method.GET, "/some/url").with(plainTextBodyLens.of("request body"))
+
+    val handler =
+        RequestContextFilter() // Must have request context to set the body exclusion flags
+            .then(RequestIdMdcFilter())
+            .then(loggingFilter)
+            .then { receivedRequest ->
+              receivedRequest.excludeRequestBodyFromLog()
+              receivedRequest.excludeResponseBodyFromLog()
+              Response(Status.BAD_REQUEST).with(plainTextBodyLens.of("response body"))
+            }
+
+    val response = handler(request)
+
+    response.status shouldBe Status.BAD_REQUEST
+
+    logs.shouldHaveSize(1)
+    val log = logs.first()
+    log.request.body.shouldBeNull()
+    log.response.body.shouldBeNull()
   }
 
   @Test

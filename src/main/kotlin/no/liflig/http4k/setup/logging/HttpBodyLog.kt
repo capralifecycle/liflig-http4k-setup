@@ -111,14 +111,6 @@ sealed interface HttpBodyLog {
     internal val FAILED_TO_READ_BODY_MESSAGE = StringBodyLog("<Failed to read body>")
 
     internal val BODY_ENCODED_MESSAGE = StringBodyLog("<Encoded>")
-
-    /**
-     * When [excludeRequestBodyFromLog][no.liflig.http4k.setup.excludeRequestBodyFromLog] or
-     * [excludeResponseBodyFromLog][no.liflig.http4k.setup.excludeResponseBodyFromLog] have been
-     * called in a handler, this message is used instead. We use this instead of setting the body
-     * field to null, to avoid confusion over why the body is not included in the request log.
-     */
-    internal val BODY_EXCLUDED_MESSAGE = StringBodyLog("<EXCLUDED>")
   }
 }
 
