@@ -62,20 +62,20 @@ internal class RequestContext {
       return readRequestContext(request, defaultValue = null) { it.exceptionForLog }
     }
 
-    internal fun isRequestBodyExcludedFromLog(request: Request): Boolean {
-      return readRequestContext(request, defaultValue = false) { it.excludeRequestBodyFromLog }
-    }
-
-    internal fun isResponseBodyExcludedFromLog(request: Request): Boolean {
-      return readRequestContext(request, defaultValue = false) { it.excludeResponseBodyFromLog }
-    }
-
     internal fun isRequestBodyIncludedInLog(request: Request): Boolean {
       return readRequestContext(request, defaultValue = false) { it.includeRequestBodyInLog }
     }
 
     internal fun isResponseBodyIncludedInLog(request: Request): Boolean {
       return readRequestContext(request, defaultValue = false) { it.includeResponseBodyInLog }
+    }
+
+    internal fun isRequestBodyExcludedFromLog(request: Request): Boolean {
+      return readRequestContext(request, defaultValue = false) { it.excludeRequestBodyFromLog }
+    }
+
+    internal fun isResponseBodyExcludedFromLog(request: Request): Boolean {
+      return readRequestContext(request, defaultValue = false) { it.excludeResponseBodyFromLog }
     }
 
     internal fun getValidJsonRequestBody(request: Request): String? {
@@ -90,20 +90,20 @@ internal class RequestContext {
       updateRequestContext(request) { it.exceptionForLog = exception }
     }
 
-    internal fun excludeRequestBodyFromLog(request: Request) {
-      updateRequestContext(request) { it.excludeRequestBodyFromLog = true }
-    }
-
-    internal fun excludeResponseBodyFromLog(request: Request) {
-      updateRequestContext(request) { it.excludeResponseBodyFromLog = true }
-    }
-
     internal fun includeRequestBodyInLog(request: Request) {
       updateRequestContext(request) { it.includeRequestBodyInLog = true }
     }
 
     internal fun includeResponseBodyInLog(request: Request) {
       updateRequestContext(request) { it.includeResponseBodyInLog = true }
+    }
+
+    internal fun excludeRequestBodyFromLog(request: Request) {
+      updateRequestContext(request) { it.excludeRequestBodyFromLog = true }
+    }
+
+    internal fun excludeResponseBodyFromLog(request: Request) {
+      updateRequestContext(request) { it.excludeResponseBodyFromLog = true }
     }
 
     internal fun markRequestBodyAsValidJson(request: Request, requestBody: String) {

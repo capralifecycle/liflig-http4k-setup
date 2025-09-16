@@ -86,24 +86,8 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
       val endTimeInstant = Instant.now()
       val duration = Duration.ofNanos(System.nanoTime() - startTime)
 
-      val loggedException = RequestContext.getExceptionForLog(request)
-
-      val requestBody =
-          if (shouldLogBody(
-              httpMessage = request,
-              request = request,
-              response = response,
-          )) {
-            HttpBodyLog.from(request)
-          } else {
-            null
-          }
-      val responseBody =
-          if (shouldLogBody(httpMessage = response, request = request, response = response)) {
-            HttpBodyLog.from(response)
-          } else {
-            null
-          }
+      val requestBody = getBodyLog(httpMessage = request, request, response)
+      val responseBody = getBodyLog(httpMessage = response, request, response)
 
       val logEntry =
           RequestResponseLog(
@@ -129,7 +113,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
                   ),
               principal = principalLog(request),
               durationMs = duration.toMillis(),
-              throwable = loggedException,
+              throwable = RequestContext.getExceptionForLog(request),
               status = NormalizedStatus.from(response),
               thread = Thread.currentThread().name,
               logLevel = RequestContext.getRequestLogLevel(request),
@@ -138,6 +122,18 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
       logHandler(logEntry)
 
       response
+    }
+  }
+
+  private fun getBodyLog(
+      httpMessage: HttpMessage,
+      request: Request,
+      response: Response,
+  ): HttpBodyLogWithSize? {
+    return if (shouldLogBody(httpMessage, request, response)) {
+      HttpBodyLog.from(httpMessage)
+    } else {
+      null
     }
   }
 
