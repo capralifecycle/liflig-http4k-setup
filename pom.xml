@@ -7,7 +7,7 @@
   <parent>
     <groupId>no.liflig</groupId>
     <artifactId>kotlin-parent</artifactId>
-    <version>3.20250816.225535</version>
+    <version>3.20250914.100506</version>
   </parent>
 
   <!--suppress MavenRedundantGroupId -->
@@ -26,9 +26,9 @@
     <kotlin.compiler.jvmTarget>${java.version}</kotlin.compiler.jvmTarget>
     <kotlin.compiler.apiVersion>2.1</kotlin.compiler.apiVersion>
 
-    <http4k.version>6.15.1.0</http4k.version>
+    <http4k.version>6.18.0.1</http4k.version>
     <kotlinx-serialization.version>1.9.0</kotlinx-serialization.version>
-    <liflig-logging.version>2.20250907.150844</liflig-logging.version>
+    <liflig-logging.version>2.20250907.165744</liflig-logging.version>
     <liflig-public-exception.version>1.20250924.093011</liflig-public-exception.version>
     <slf4j.version>2.0.17</slf4j.version>
 
