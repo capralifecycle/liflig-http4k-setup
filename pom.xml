@@ -33,8 +33,8 @@
     <slf4j.version>2.0.17</slf4j.version>
 
     <!-- Testing-->
-    <junit-bom.version>5.13.4</junit-bom.version>
-    <kotest-assertions-core-jvm.version>5.9.1</kotest-assertions-core-jvm.version>
+    <junit-bom.version>6.0.0</junit-bom.version>
+    <kotest-assertions-core-jvm.version>6.0.3</kotest-assertions-core-jvm.version>
     <logback-classic.version>1.5.18</logback-classic.version>
     <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
   </properties>
