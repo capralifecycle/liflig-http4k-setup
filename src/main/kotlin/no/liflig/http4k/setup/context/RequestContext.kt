@@ -143,7 +143,7 @@ internal class RequestContext {
     private inline fun <ReturnT> readRequestContext(
         request: Request,
         defaultValue: ReturnT,
-        consumer: (RequestContext) -> ReturnT
+        consumer: (RequestContext) -> ReturnT,
     ): ReturnT {
       val context = lens(request)
       return if (context != null) {

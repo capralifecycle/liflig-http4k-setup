@@ -16,7 +16,7 @@ inline fun <ReturnT> useHttpServer(
         LoggingFilter.createLogHandler(),
     logHttpBody: Boolean = true,
     port: Int = 8080,
-    block: (ServerTestUtils) -> ReturnT
+    block: (ServerTestUtils) -> ReturnT,
 ): ReturnT {
   val (coreFilters, _) =
       LifligBasicApiSetup(

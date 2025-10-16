@@ -7,7 +7,7 @@
   <parent>
     <groupId>no.liflig</groupId>
     <artifactId>kotlin-parent</artifactId>
-    <version>3.20250914.100506</version>
+    <version>3.20251016.053254</version>
   </parent>
 
   <!--suppress MavenRedundantGroupId -->
@@ -28,14 +28,14 @@
 
     <http4k.version>6.18.0.1</http4k.version>
     <kotlinx-serialization.version>1.9.0</kotlinx-serialization.version>
-    <liflig-logging.version>2.20250907.165744</liflig-logging.version>
-    <liflig-public-exception.version>1.20250924.093011</liflig-public-exception.version>
+    <liflig-logging.version>2.20251016.061516</liflig-logging.version>
+    <liflig-public-exception.version>1.20251016.062040</liflig-public-exception.version>
     <slf4j.version>2.0.17</slf4j.version>
 
     <!-- Testing-->
-    <junit-bom.version>5.13.4</junit-bom.version>
-    <kotest-assertions-core-jvm.version>5.9.1</kotest-assertions-core-jvm.version>
-    <logback-classic.version>1.5.18</logback-classic.version>
+    <junit.version>6.0.0</junit.version>
+    <kotest-assertions-core-jvm.version>6.0.4</kotest-assertions-core-jvm.version>
+    <logback-classic.version>1.5.19</logback-classic.version>
     <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
   </properties>
 
@@ -80,7 +80,7 @@
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>${junit-bom.version}</version>
+        <version>${junit.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

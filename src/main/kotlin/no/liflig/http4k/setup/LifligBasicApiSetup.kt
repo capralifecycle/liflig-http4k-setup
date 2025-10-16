@@ -87,7 +87,8 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
      * Allows custom error response body for lens failure in contract if provided. Defaults to
      * Liflig standard.
      */
-    private val errorResponseBodyRenderer: ErrorResponseRenderer = StandardErrorResponseBodyRenderer
+    private val errorResponseBodyRenderer: ErrorResponseRenderer =
+        StandardErrorResponseBodyRenderer,
 ) {
   fun create(
       /**
@@ -134,5 +135,5 @@ data class LifligBasicApiSetupConfig(
      * router which overrides the [CatchLensFailure]-filter set below in core filters. The latter is
      * in place for non-contract-APIs.
      */
-    val errorResponseRenderer: ContractLensErrorResponseRenderer
+    val errorResponseRenderer: ContractLensErrorResponseRenderer,
 )

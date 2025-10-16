@@ -69,7 +69,7 @@ object ListQuery :
    */
   fun <T> mapValues(
       incoming: (String) -> T,
-      outgoing: (T) -> String
+      outgoing: (T) -> String,
   ): BiDiLensSpec<Request, List<T>> {
     return this.map(
         { incomingValues -> incomingValues.map(incoming) },

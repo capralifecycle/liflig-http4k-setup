@@ -275,10 +275,12 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
       val response = entry.response
 
       // Suppress successful health checks
-      if (suppressSuccessfulHealthChecks &&
-          request.uri == "/health" &&
-          response.statusCode == 200 &&
-          entry.throwable == null) {
+      if (
+          suppressSuccessfulHealthChecks &&
+              request.uri == "/health" &&
+              response.statusCode == 200 &&
+              entry.throwable == null
+      ) {
         return
       }
 

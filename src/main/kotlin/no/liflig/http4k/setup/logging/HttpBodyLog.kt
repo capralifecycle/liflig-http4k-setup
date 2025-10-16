@@ -62,8 +62,10 @@ sealed interface HttpBodyLog {
         }
 
         // If body has been encoded (e.g. with gzip), then it doesn't make sense to log it
-        if (httpMessage.header("Content-Encoding") != null ||
-            httpMessage.header("Transfer-Encoding") != null) {
+        if (
+            httpMessage.header("Content-Encoding") != null ||
+                httpMessage.header("Transfer-Encoding") != null
+        ) {
           return HttpBodyLogWithSize(BODY_ENCODED_MESSAGE, size = null)
         }
 
