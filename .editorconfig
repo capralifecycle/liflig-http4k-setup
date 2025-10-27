@@ -1,11 +1,12 @@
 # Preferably this file is similar in all projects.
-# If you make any additions, please consider contributing to
-# the original one in the baseline https://github.com/capralifecycle/liflig-rest-service-baseline/blob/master/.editorconfig
+# If you make any additions, please consider contributing to the original one in the baseline:
+# https://github.com/capralifecycle/liflig-baseline-archetypes/blob/master/rest-service-baseline-archetype/src/main/resources/archetype-resources/.editorconfig
 
 # http://editorconfig.org
 root = true
 
 [*]
+max_line_length = 100
 indent_style = space
 indent_size = 2
 end_of_line = lf
@@ -17,13 +18,8 @@ insert_final_newline = true
 # Markdown uses double trailing whitespaces as special chars to force newlines
 trim_trailing_whitespace = false
 
-
 # This .editorconfig section approximates ktfmt's formatting rules.
 [{*.kt,*.kts}]
-indent_style = space
-insert_final_newline = true
-max_line_length = 100
-indent_size = 2
 ij_continuation_indent_size = 4
 ij_java_names_count_to_use_import_on_demand = 9999
 ij_kotlin_align_in_columns_case_branch = false
@@ -50,7 +46,7 @@ ij_kotlin_continuation_indent_for_expression_bodies = true
 ij_kotlin_continuation_indent_in_argument_lists = true
 ij_kotlin_continuation_indent_in_elvis = false
 ij_kotlin_continuation_indent_in_if_conditions = false
-ij_kotlin_continuation_indent_in_parameter_lists = false
+ij_kotlin_continuation_indent_in_parameter_lists = true
 ij_kotlin_continuation_indent_in_supertype_lists = false
 ij_kotlin_else_on_new_line = false
 ij_kotlin_enum_constants_wrap = off
