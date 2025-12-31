@@ -7,7 +7,7 @@
   <parent>
     <groupId>no.liflig</groupId>
     <artifactId>kotlin-parent</artifactId>
-    <version>3.20251118.230634</version>
+    <version>3.20251213.150449</version>
   </parent>
 
   <!--suppress MavenRedundantGroupId -->
@@ -26,16 +26,16 @@
     <kotlin.compiler.jvmTarget>${java.version}</kotlin.compiler.jvmTarget>
     <kotlin.compiler.apiVersion>2.1</kotlin.compiler.apiVersion>
 
-    <http4k.version>6.21.1.0</http4k.version>
+    <http4k.version>6.24.1.0</http4k.version>
     <kotlinx-serialization.version>1.9.0</kotlinx-serialization.version>
-    <liflig-logging.version>3.20251121.115719</liflig-logging.version>
+    <liflig-logging.version>3.20251201.114154</liflig-logging.version>
     <liflig-public-exception.version>2.20251121.121333</liflig-public-exception.version>
     <slf4j.version>2.0.17</slf4j.version>
 
     <!-- Testing-->
     <junit.version>6.0.1</junit.version>
-    <kotest-assertions-core-jvm.version>6.0.5</kotest-assertions-core-jvm.version>
-    <logback-classic.version>1.5.21</logback-classic.version>
+    <kotest-assertions-core-jvm.version>6.0.7</kotest-assertions-core-jvm.version>
+    <logback-classic.version>1.5.22</logback-classic.version>
     <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
   </properties>
 
