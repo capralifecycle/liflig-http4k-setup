@@ -84,6 +84,14 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
     private val redactedHeaders: List<String> = listOf("authorization", "x-api-key"),
     private val corsPolicy: CorsPolicy? = null,
     /**
+     * Enables automatic gzip compression of responses when the client sends an `Accept-Encoding:
+     * gzip` header.
+     *
+     * Do not enable this if your service returns streaming responses (e.g. chunked/NDJson streams),
+     * since the default memory-based compression buffers the entire response body before sending.
+     */
+    private val gzipResponse: Boolean = false,
+    /**
      * Allows custom error response body for lens failure in contract if provided. Defaults to
      * Liflig standard.
      */
@@ -104,7 +112,7 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
         LastResortCatchAllThrowablesFilter()
             // GZip must be placed before LoggingFilter so that it compresses the response after
             // LoggingFilter has logged the uncompressed body on the way back up the filter chain.
-            .then(ServerFilters.GZip())
+            .let { if (gzipResponse) it.then(ServerFilters.GZip()) else it }
             // We want this filter to be before the rest of the filters, otherwise we won't get
             // correct CORS headers on responses returned from e.g. CatchUnhandledThrowablesFilter
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
