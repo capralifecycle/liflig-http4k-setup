@@ -102,6 +102,9 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
 
     val coreFilters =
         LastResortCatchAllThrowablesFilter()
+            // GZip must be placed before LoggingFilter so that it compresses the response after
+            // LoggingFilter has logged the uncompressed body on the way back up the filter chain.
+            .then(ServerFilters.GZip())
             // We want this filter to be before the rest of the filters, otherwise we won't get
             // correct CORS headers on responses returned from e.g. CatchUnhandledThrowablesFilter
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
