@@ -28,8 +28,8 @@
 
     <http4k.version>6.31.1.0</http4k.version>
     <kotlinx-serialization.version>1.10.0</kotlinx-serialization.version>
-    <liflig-logging.version>3.20260204.135728</liflig-logging.version>
-    <liflig-public-exception.version>2.20251121.121333</liflig-public-exception.version>
+    <liflig-logging.version>3.20260312.075908</liflig-logging.version>
+    <liflig-public-exception.version>2.20260312.094454</liflig-public-exception.version>
     <slf4j.version>2.0.17</slf4j.version>
 
     <!-- Testing-->
