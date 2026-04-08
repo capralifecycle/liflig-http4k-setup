@@ -10,6 +10,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
+import javax.validation.constraints.Null
 import kotlinx.serialization.json.Json as KotlinxJson
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -138,19 +139,19 @@ class KotlinxSerializationJsonSchemaCreatorTest {
     val required = definition["required"] as JsonArray
     val requiredList = required.map { (it as JsonPrimitive).content }
 
-    requiredList shouldBe listOf("required")
+    requiredList shouldBe listOf("required", "nullable", "nullableInner")
 
     val properties = definition["properties"] as JsonObject
 
     // Nullable primitive: type array with "null"
-    val optionalSchema = properties["optional"] as JsonObject
+    val optionalSchema = properties["nullable"] as JsonObject
     val optionalType = optionalSchema["type"] as JsonArray
     optionalType.size shouldBe 2
     (optionalType[0] as JsonPrimitive).content shouldBe "string"
     (optionalType[1] as JsonPrimitive).content shouldBe "null"
 
     // Nullable $ref: plain $ref (no anyOf wrapper)
-    val optionalInnerSchema = properties["optionalInner"] as JsonObject
+    val optionalInnerSchema = properties["nullableInner"] as JsonObject
     (optionalInnerSchema["\$ref"] as JsonPrimitive).content shouldContain "InnerDto"
     optionalInnerSchema["anyOf"] shouldBe null
 
@@ -168,7 +169,7 @@ class KotlinxSerializationJsonSchemaCreatorTest {
     val required = definition["required"] as JsonArray
     val requiredList = required.map { (it as JsonPrimitive).content }
 
-    requiredList shouldBe listOf("required")
+    requiredList shouldBe listOf("required", "requiredWithDefault")
   }
 
   @Test
@@ -576,13 +577,13 @@ class KotlinxSerializationJsonSchemaCreatorTest {
     val properties = definition["properties"] as JsonObject
 
     // Nullable primitive: anyOf with type + null
-    val optionalSchema = properties["optional"] as JsonObject
+    val optionalSchema = properties["nullable"] as JsonObject
     optionalSchema["anyOf"].shouldNotBeNull()
     val anyOfArray = optionalSchema["anyOf"] as JsonArray
     anyOfArray.size shouldBe 2
 
     // Nullable $ref: anyOf with $ref + null
-    val optionalInnerSchema = properties["optionalInner"] as JsonObject
+    val optionalInnerSchema = properties["nullableInner"] as JsonObject
     optionalInnerSchema["anyOf"].shouldNotBeNull()
     val innerAnyOf = optionalInnerSchema["anyOf"] as JsonArray
     innerAnyOf.size shouldBe 2

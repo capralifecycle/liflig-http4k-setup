@@ -530,8 +530,7 @@ class KotlinxSerializationJsonSchemaCreator<NODE : Any>(
       properties.add(elementName to elementSchema)
 
       val isOptional = descriptor.isElementOptional(i)
-      val isNullable = elementDescriptor.isNullable
-      if (!isOptional && !isNullable) {
+      if (!isOptional) {
         requiredFields.add(elementName)
       }
     }

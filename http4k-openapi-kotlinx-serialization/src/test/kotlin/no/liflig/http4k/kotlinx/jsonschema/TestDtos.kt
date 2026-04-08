@@ -1,6 +1,7 @@
 package no.liflig.http4k.kotlinx.jsonschema
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -56,8 +57,8 @@ data class ListDto(
 @Serializable
 data class NullableFieldDto(
     val required: String,
-    val optional: String?,
-    val optionalInner: InnerDto?,
+    val nullable: String?,
+    val nullableInner: InnerDto?,
 ) {
   companion object {
     val example = NullableFieldDto("hello", "world", InnerDto.example)
@@ -69,6 +70,8 @@ data class OptionalFieldDto(
     val required: String,
     val withDefault: String = "default-value",
     val withDefaultInt: Int = 42,
+    @Required
+    val requiredWithDefault: String = "required-default-value",
 ) {
   companion object {
     val example = OptionalFieldDto("hello")
