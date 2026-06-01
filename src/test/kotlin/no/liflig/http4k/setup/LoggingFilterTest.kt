@@ -21,7 +21,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.liflig.http4k.setup.context.RequestContextFilter
-import no.liflig.http4k.setup.filters.RequestIdMdcFilter
+import no.liflig.http4k.setup.filters.RequestHeaderMdcFilter
 import no.liflig.http4k.setup.logging.HttpBodyLog
 import no.liflig.http4k.setup.logging.JsonBodyLog
 import no.liflig.http4k.setup.logging.LoggingFilter
@@ -60,6 +60,7 @@ class LoggingFilterTest {
           timestamp = Instant.parse("2021-04-25T21:27:12.332741Z"),
           requestId = UUID.fromString("e1354392-8488-4ac0-9327-e22cd4d877ec"),
           requestIdChain = listOf(UUID.fromString("e1354392-8488-4ac0-9327-e22cd4d877ec")),
+          requestUserId = "f5219811-cd2c-4883-9c3b-b51b0d3cdefa",
           request =
               RequestLog(
                   timestamp = Instant.parse("2021-04-25T21:27:12.222741Z"),
@@ -95,10 +96,13 @@ class LoggingFilterTest {
             includeBody = true,
         )
 
-    val request = Request(Method.GET, "/some/url")
+    val request =
+        Request(Method.GET, "/some/url").header("X-User-ID", "f5219811-cd2c-4883-9c3b-b51b0d3cdefa")
 
     val handler =
-        RequestIdMdcFilter().then(loggingFilter).then { Response(Status.OK).body("hello world") }
+        RequestHeaderMdcFilter().then(loggingFilter).then {
+          Response(Status.OK).body("hello world")
+        }
 
     val response = handler(request)
 
@@ -106,6 +110,7 @@ class LoggingFilterTest {
 
     logs shouldHaveSize 1
     val log = logs.first()
+    log.requestUserId shouldBe "f5219811-cd2c-4883-9c3b-b51b0d3cdefa"
     log.principal shouldBe CustomPrincipalLog
     log.request.body shouldBe StringBodyLog("")
     log.request.method shouldBe "GET"
@@ -130,7 +135,9 @@ class LoggingFilterTest {
     val request = Request(Method.GET, "/some/url").header("authorization", "my very secret value")
 
     val handler =
-        RequestIdMdcFilter().then(loggingFilter).then { Response(Status.OK).body("hello world") }
+        RequestHeaderMdcFilter().then(loggingFilter).then {
+          Response(Status.OK).body("hello world")
+        }
 
     handler(request)
 
@@ -157,7 +164,7 @@ class LoggingFilterTest {
 
     val handler =
         RequestContextFilter() // Must have request context to set the body exclusion flags
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { receivedRequest ->
               receivedRequest.excludeRequestBodyFromLog()
@@ -190,7 +197,7 @@ class LoggingFilterTest {
 
     val handler =
         RequestContextFilter() // Must have request context to set the body exclusion flags
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { receivedRequest ->
               receivedRequest.excludeRequestAndResponseBodyFromLog()
@@ -222,7 +229,7 @@ class LoggingFilterTest {
 
     val handler =
         RequestContextFilter() // Must have request context to set the body inclusion flags
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { receivedRequest ->
               receivedRequest.includeRequestBodyInLog()
@@ -255,7 +262,7 @@ class LoggingFilterTest {
 
     val handler =
         RequestContextFilter() // Must have request context to set the body inclusion flags
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { receivedRequest ->
               receivedRequest.includeRequestAndResponseBodyInLog()
@@ -289,7 +296,7 @@ class LoggingFilterTest {
 
     val handler =
         RequestContextFilter() // Need request context to check body exclusion flags
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { receivedRequest ->
               if (receivedRequest.bodyString() == "request body 1") {
@@ -331,7 +338,7 @@ class LoggingFilterTest {
 
     val handler =
         RequestContextFilter() // Must have request context to set the body exclusion flags
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { receivedRequest ->
               receivedRequest.excludeRequestBodyFromLog()
@@ -365,7 +372,7 @@ class LoggingFilterTest {
 
     val handler =
         RequestContextFilter() // Must have request context for attaching exception
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { request ->
               errorResponse(
@@ -569,7 +576,7 @@ response"}"""
 
     val handler =
         RequestContextFilter() // Logging filter uses request context
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(loggingFilter)
             .then { request ->
               request.attachPrincipalLog(ExamplePrincipalLog(name = "Test McTest"))
