@@ -65,7 +65,6 @@ jobs:
       - name: conditional release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SHARED_SONAR_TOKEN }}
           CONDITIONAL_RELEASE: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
           TAG: "${{ steps.tag.outputs.tag }}"
 
