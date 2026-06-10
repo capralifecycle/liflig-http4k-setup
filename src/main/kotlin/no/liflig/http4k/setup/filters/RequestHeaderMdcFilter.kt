@@ -66,23 +66,25 @@ class RequestHeaderMdcFilter : Filter {
 
       try {
         // Add keys
-        MDC.put(REQUEST_ID_HEADER, requestIdChain.joinToString(","))
-        MDC.put(USER_ID_HEADER, inputUserId)
+        MDC.put(REQUEST_ID_MDC_KEY, requestIdChain.joinToString(","))
+        MDC.put(USER_ID_MDC_KEY, inputUserId)
         // Handle request
         val response = nextHandler(requestIdChainLens.inject(requestIdChain, request))
         // Add request ID to the response
         response.header(REQUEST_ID_HEADER, requestId.toString())
       } finally {
         // Remove keys
-        MDC.remove(REQUEST_ID_HEADER)
-        MDC.remove(USER_ID_HEADER)
+        MDC.remove(REQUEST_ID_MDC_KEY)
+        MDC.remove(USER_ID_MDC_KEY)
       }
     }
   }
 
   companion object {
     internal const val REQUEST_ID_HEADER = "x-request-id"
+    internal const val REQUEST_ID_MDC_KEY = "requestIdChain"
     internal const val USER_ID_HEADER = "X-User-ID"
+    internal const val USER_ID_MDC_KEY = USER_ID_HEADER
 
     // Patter for requestId, based on source https://stackoverflow.com/a/13653180
     private const val SINGLE_REQUEST_ID_PATTERN =
@@ -102,16 +104,16 @@ class RequestHeaderMdcFilter : Filter {
   }
 }
 
-fun getRequestIdChainFromMdc(): String? = MDC.get(RequestHeaderMdcFilter.REQUEST_ID_HEADER)
+fun requestIdMdcChain(): String? = MDC.get(RequestHeaderMdcFilter.REQUEST_ID_MDC_KEY)
 
 /**
  * Add the request ID to a [Request] so that it can be added to the chain when logging the request
  * in the target service.
  */
-fun Request.withRequestIdChain(): Request {
-  val requestIdChain = getRequestIdChainFromMdc()
+fun Request.withRequestIdMdcChain(): Request {
+  val requestIdChain = requestIdMdcChain()
   return if (requestIdChain != null) {
-    this.header(RequestHeaderMdcFilter.REQUEST_ID_HEADER, requestIdChain)
+    this.header(RequestHeaderMdcFilter.REQUEST_ID_MDC_KEY, requestIdChain)
   } else {
     this
   }

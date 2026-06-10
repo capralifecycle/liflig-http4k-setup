@@ -3,7 +3,7 @@ package no.liflig.http4k.setup
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveLength
 import no.liflig.http4k.setup.filters.RequestHeaderMdcFilter
-import no.liflig.http4k.setup.filters.getRequestIdChainFromMdc
+import no.liflig.http4k.setup.filters.requestIdMdcChain
 import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.Response
@@ -29,11 +29,11 @@ class RequestHeaderMdcFilterTest {
   fun `is available on MDC in the handler and be removed afterwards`() {
     var handled = false
 
-    getRequestIdChainFromMdc() shouldBe null
+    requestIdMdcChain() shouldBe null
 
     val handler =
         RequestHeaderMdcFilter().then {
-          getRequestIdChainFromMdc() shouldHaveLength 36 // Length of UUID
+          requestIdMdcChain() shouldHaveLength 36 // Length of UUID
           handled = true
           Response(Status.OK)
         }
@@ -42,6 +42,6 @@ class RequestHeaderMdcFilterTest {
     handler(request)
     handled shouldBe true
 
-    getRequestIdChainFromMdc() shouldBe null
+    requestIdMdcChain() shouldBe null
   }
 }
