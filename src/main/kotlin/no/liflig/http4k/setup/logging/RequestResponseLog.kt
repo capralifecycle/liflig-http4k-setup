@@ -26,6 +26,7 @@ data class RequestResponseLog<PrincipalLogT : PrincipalLog>(
      * chain, and will always reference this request itself and have the same value as [requestId].
      */
     val requestIdChain: List<UUID>,
+    val requestUserId: String?,
     val request: RequestLog,
     val response: ResponseLog,
     /** The [Principal][PrincipalLog] that executed the request. */

@@ -18,6 +18,7 @@ import org.slf4j.MDC
  * This helps us map an application log to a specific request, so that it provides better context,
  * and also so that log statements for the same requests can be seen together.
  */
+@Deprecated("Old version will be removed", ReplaceWith("RequestHeaderMdcFilter"))
 class RequestIdMdcFilter : Filter {
   override fun invoke(nextHandler: HttpHandler): HttpHandler {
     return { request ->

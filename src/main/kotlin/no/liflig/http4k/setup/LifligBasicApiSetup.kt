@@ -6,7 +6,7 @@ import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
 import no.liflig.http4k.setup.errorhandling.LastResortCatchAllThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.PublicExceptionFilter
 import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
-import no.liflig.http4k.setup.filters.RequestIdMdcFilter
+import no.liflig.http4k.setup.filters.RequestHeaderMdcFilter
 import no.liflig.http4k.setup.filters.http4kOpenTelemetryFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
 import no.liflig.http4k.setup.logging.PrincipalLog
@@ -106,7 +106,7 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
             // correct CORS headers on responses returned from e.g. CatchUnhandledThrowablesFilter
             .let { if (corsPolicy != null) it.then(ServerFilters.Cors(corsPolicy)) else it }
             .then(RequestContextFilter())
-            .then(RequestIdMdcFilter())
+            .then(RequestHeaderMdcFilter())
             .then(
                 LoggingFilter<PrincipalLogT>(
                     principalLog = principalLog,

@@ -5,7 +5,7 @@ import java.time.Instant
 import kotlinx.serialization.KSerializer
 import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.context.RequestContext
-import no.liflig.http4k.setup.filters.RequestIdMdcFilter
+import no.liflig.http4k.setup.filters.RequestHeaderMdcFilter
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.logging.LogLevel
 import no.liflig.logging.getLogger
@@ -76,7 +76,8 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
 ) : Filter {
   override fun invoke(nextHandler: HttpHandler): HttpHandler {
     return { request ->
-      val requestIdChain = RequestIdMdcFilter.requestIdChainLens(request)
+      val requestIdChain = RequestHeaderMdcFilter.requestIdChainLens(request)
+      val requestUserId = request.header(RequestHeaderMdcFilter.USER_ID_HEADER)
       val startTimeInstant = Instant.now()
       val startTime = System.nanoTime()
 
@@ -94,6 +95,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
               timestamp = Instant.now(),
               requestId = requestIdChain.last(),
               requestIdChain = requestIdChain,
+              requestUserId = requestUserId,
               request =
                   RequestLog(
                       timestamp = startTimeInstant,
