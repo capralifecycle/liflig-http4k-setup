@@ -74,14 +74,14 @@ class RequestIdMdcFilter : Filter {
   }
 }
 
-fun requestIdChainFromMdc(): String? = MDC.get(RequestIdMdcFilter.MDC_KEY)
+fun getRequestIdChainFromMdc(): String? = MDC.get(RequestIdMdcFilter.MDC_KEY)
 
 /**
  * Add the request ID to a [Request] so that it can be added to the chain when logging the request
  * in the target service.
  */
 fun Request.withRequestIdChain(): Request {
-  val requestIdChain = requestIdChainFromMdc()
+  val requestIdChain = getRequestIdChainFromMdc()
   return if (requestIdChain != null) {
     this.header(RequestIdMdcFilter.HEADER_NAME, requestIdChain)
   } else {

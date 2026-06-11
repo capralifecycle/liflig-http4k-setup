@@ -113,7 +113,7 @@ fun requestIdMdcChain(): String? = MDC.get(RequestHeaderMdcFilter.REQUEST_ID_MDC
 fun Request.withRequestIdMdcChain(): Request {
   val requestIdChain = requestIdMdcChain()
   return if (requestIdChain != null) {
-    this.header(RequestHeaderMdcFilter.REQUEST_ID_MDC_KEY, requestIdChain)
+    this.header(RequestHeaderMdcFilter.REQUEST_ID_HEADER, requestIdChain)
   } else {
     this
   }
