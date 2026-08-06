@@ -2,8 +2,13 @@
 
 package no.liflig.http4k.setup.filters
 
+import java.util.Base64
 import java.util.UUID
 import java.util.regex.Pattern
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.http4k.core.Filter
 import org.http4k.core.HttpHandler
 import org.http4k.core.Request
@@ -13,13 +18,15 @@ import org.slf4j.MDC
 
 /**
  * A filter that manages the inclusion of request-related metadata in the MDC (Mapped Diagnostic
- * Context) for logging and tracing purposes. Specifically, it adds request ID and user ID
- * information to the contextual logging framework to enable traceability across distributed
+ * Context) for logging and tracing purposes. Specifically, it adds request ID, user ID and client
+ * ID information to the contextual logging framework to enable traceability across distributed
  * services.
  *
  * This filter intercepts HTTP requests and adds a chain of request IDs representing the origin and
  * flow of the request, along with any user ID headers provided. The request ID chain is serialized
- * as a comma-separated list to form a stack, while user IDs are directly added when present.
+ * as a comma-separated list to form a stack, while user IDs are directly added when present. The
+ * client ID is read from the "client_id" claim of the JWT in the "Authorization" header, when
+ * present.
  *
  * Additionally, the filter ensures that the generated request ID is added to the response headers
  * for further traceability downstream.
@@ -28,6 +35,7 @@ import org.slf4j.MDC
  * - Extracts incoming request-related metadata (e.g., "x-request-id", "X-User-ID") from headers.
  * - Validates and parses the input request-ID chain using a predefined UUID pattern.
  * - Assigns a new request ID to the current request and appends it to the chain.
+ * - Reads the "client_id" claim from the bearer token, without verifying the token signature.
  * - Appends request metadata to the MDC for contextual logging.
  * - Ensures cleanup of MDC after request processing completes.
  *
@@ -38,6 +46,7 @@ import org.slf4j.MDC
  * Companion object constants:
  * - `REQUEST_ID_HEADER`: Header name for the request ID.
  * - `USER_ID_HEADER`: Header name for the user ID.
+ * - `CLIENT_ID_CLAIM`: JWT claim name for the client ID.
  *
  * Companion object utilities:
  * - Regular expression pattern (`inputRequestIdPattern`) for validating the request ID format.
@@ -63,11 +72,18 @@ class RequestHeaderMdcFilter : Filter {
       requestIdChain += requestId
       // User UUID from header params
       val inputUserId = request.header(USER_ID_HEADER)
+      // Client ID from the JWT in the Authorization header, if present
+      val clientId = clientIdFromToken(request.header(AUTHORIZATION_HEADER))
 
       try {
-        // Add keys
+        // Add keys. Only the ones that have a value, to avoid polluting logs with null entries.
         MDC.put(REQUEST_ID_MDC_KEY, requestIdChain.joinToString(","))
-        MDC.put(USER_ID_MDC_KEY, inputUserId)
+        if (inputUserId != null) {
+          MDC.put(USER_ID_MDC_KEY, inputUserId)
+        }
+        if (clientId != null) {
+          MDC.put(CLIENT_ID_MDC_KEY, clientId)
+        }
         // Handle request
         val response = nextHandler(requestIdChainLens.inject(requestIdChain, request))
         // Add request ID to the response
@@ -76,6 +92,7 @@ class RequestHeaderMdcFilter : Filter {
         // Remove keys
         MDC.remove(REQUEST_ID_MDC_KEY)
         MDC.remove(USER_ID_MDC_KEY)
+        MDC.remove(CLIENT_ID_MDC_KEY)
       }
     }
   }
@@ -85,6 +102,48 @@ class RequestHeaderMdcFilter : Filter {
     internal const val REQUEST_ID_MDC_KEY = "requestIdChain"
     internal const val USER_ID_HEADER = "X-User-ID"
     internal const val USER_ID_MDC_KEY = USER_ID_HEADER
+    internal const val AUTHORIZATION_HEADER = "Authorization"
+    internal const val CLIENT_ID_CLAIM = "client_id"
+    internal const val CLIENT_ID_MDC_KEY = "clientId"
+
+    private const val BEARER_PREFIX = "Bearer "
+
+    private val jsonParser = Json { ignoreUnknownKeys = true }
+
+    /**
+     * Reads the [CLIENT_ID_CLAIM] claim from the payload of the JWT in the given Authorization
+     * header value.
+     *
+     * The token signature is _not_ verified here, since the value is only used for logging - never
+     * base authorization decisions on it. Returns null if the header is absent, or if the token is
+     * not a JWT with a readable payload.
+     */
+    private fun clientIdFromToken(authorizationHeader: String?): String? {
+      if (authorizationHeader == null) {
+        return null
+      }
+
+      return try {
+        val token =
+            if (authorizationHeader.startsWith(BEARER_PREFIX, ignoreCase = true)) {
+                  authorizationHeader.substring(BEARER_PREFIX.length)
+                } else {
+                  authorizationHeader
+                }
+                .trim()
+        val payload = token.split(".").takeIf { it.size == 3 }?.get(1) ?: return null
+        val decodedPayload = String(Base64.getUrlDecoder().decode(payload), Charsets.UTF_8)
+        jsonParser
+            .parseToJsonElement(decodedPayload)
+            .jsonObject[CLIENT_ID_CLAIM]
+            ?.jsonPrimitive
+            ?.contentOrNull
+      } catch (_: Exception) {
+        // A malformed token must not break request handling, as the client ID is only used for
+        // logging
+        null
+      }
+    }
 
     // Patter for requestId, based on source https://stackoverflow.com/a/13653180
     private const val SINGLE_REQUEST_ID_PATTERN =
