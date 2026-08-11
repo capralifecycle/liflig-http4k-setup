@@ -35,6 +35,8 @@
     <!-- Testing-->
     <junit.version>6.1.0</junit.version>
     <kotest-assertions-core-jvm.version>6.2.0</kotest-assertions-core-jvm.version>
+    <!-- Must match the OpenTelemetry version that http4k-ops-opentelemetry pulls in -->
+    <opentelemetry-sdk-testing.version>1.62.0</opentelemetry-sdk-testing.version>
     <logback-classic.version>1.5.34</logback-classic.version>
     <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
   </properties>
@@ -162,6 +164,13 @@
       <!-- For testing with an actual HTTP server -->
       <groupId>org.http4k</groupId>
       <artifactId>http4k-server-jetty</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- For asserting on recorded spans with an in-memory exporter -->
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <version>${opentelemetry-sdk-testing.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
