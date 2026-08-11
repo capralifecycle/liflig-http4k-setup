@@ -5,6 +5,7 @@ package no.liflig.http4k.setup.context
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import no.liflig.http4k.setup.ClientLog
 import no.liflig.http4k.setup.context.RequestContext.Companion.readRequestContext
 import no.liflig.http4k.setup.context.RequestContext.Companion.updateRequestContext
 import no.liflig.http4k.setup.logging.PrincipalLog
@@ -60,6 +61,9 @@ internal class RequestContext {
 
   private var principalLog: PrincipalLog? = null
 
+  /** See [no.liflig.http4k.setup.attachClientLog]. */
+  private var clientLog: ClientLog? = null
+
   internal companion object {
     internal fun getExceptionForLog(request: Request): Throwable? {
       return readRequestContext(request, defaultValue = null) { it.exceptionForLog }
@@ -93,6 +97,10 @@ internal class RequestContext {
       return readRequestContext(request, defaultValue = null) { it.principalLog }
     }
 
+    internal fun getClientLog(request: Request): ClientLog? {
+      return readRequestContext(request, defaultValue = null) { it.clientLog }
+    }
+
     internal fun setExceptionForLog(request: Request, exception: Throwable) {
       updateRequestContext(request) { it.exceptionForLog = exception }
     }
@@ -123,6 +131,10 @@ internal class RequestContext {
 
     internal fun setPrincipalLog(request: Request, principalLog: PrincipalLog) {
       return updateRequestContext(request) { it.principalLog = principalLog }
+    }
+
+    internal fun setClientLog(request: Request, clientLog: ClientLog) {
+      return updateRequestContext(request) { it.clientLog = clientLog }
     }
 
     internal val lens =

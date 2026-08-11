@@ -36,6 +36,22 @@ private val ENDUSER_PSEUDO_ID_ATTRIBUTE: AttributeKey<String> =
     AttributeKey.stringKey("enduser.pseudo.id")
 
 /**
+ * Span attribute for the machine-to-machine client that called us, set by
+ * [attachClientLog][no.liflig.http4k.setup.attachClientLog].
+ *
+ * **Not a semantic convention - we made this name up.** OpenTelemetry has no attribute for the
+ * identity of a calling application: its `client.*` namespace covers the network peer
+ * (`client.address`, `client.port`) only. The OpenTelemetry naming guide says to prefix such
+ * attributes with a namespace you own, and to "avoid using existing OpenTelemetry semantic
+ * convention namespace as a prefix" - hence the `no.liflig` reverse-domain prefix. The `client_id`
+ * component is verbatim from the claim name in RFC 8693 section 4.3.
+ *
+ * Source: https://opentelemetry.io/docs/specs/semconv/general/naming/
+ */
+internal val OAUTH_CLIENT_ID_ATTRIBUTE: AttributeKey<String> =
+    AttributeKey.stringKey("no.liflig.oauth.client_id")
+
+/**
  * Adds OpenTelemetry metrics, request counter and call tracing.
  *
  * Spans are annotated with [ENDUSER_PSEUDO_ID_ATTRIBUTE] from the
@@ -43,6 +59,11 @@ private val ENDUSER_PSEUDO_ID_ATTRIBUTE: AttributeKey<String> =
  * creation, so samplers can see it - the OpenTelemetry HTTP conventions require that of
  * sampling-relevant attributes. The header is read off the request, not the MDC, so this filter
  * works on its own, without [RequestHeaderMdcFilter] in front of it.
+ *
+ * The identity of a machine-to-machine caller goes on the span as [OAUTH_CLIENT_ID_ATTRIBUTE], but
+ * this filter cannot set it: that value must be verified first, which needs configuration only your
+ * application has. Call [attachClientLog][no.liflig.http4k.setup.attachClientLog] from your auth
+ * filter instead. That happens after the span is created, so samplers do not see it.
  *
  * You can inspect these values in CloudWatch or X-Ray with the appropriate OpenTelemetry Collector
  * set up as a sidecar container in CDK/ECS to this service.
