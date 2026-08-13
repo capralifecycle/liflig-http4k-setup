@@ -24,12 +24,20 @@ import org.slf4j.MDC
  * Additionally, the filter ensures that the generated request ID is added to the response headers
  * for further traceability downstream.
  *
+ * The filter does not put the client ID on the MDC - that value must be verified before we can
+ * trust it, so [attachClientLog][no.liflig.http4k.setup.attachClientLog] sets it from your auth
+ * filter instead. This filter still owns the key's lifetime: it removes `CLIENT_ID_MDC_KEY` once
+ * the request completes, so the value cannot leak into the next request handled by the same thread.
+ *
  * Behavior:
  * - Extracts incoming request-related metadata (e.g., "x-request-id", "X-User-ID") from headers.
  * - Validates and parses the input request-ID chain using a predefined UUID pattern.
  * - Assigns a new request ID to the current request and appends it to the chain.
  * - Appends request metadata to the MDC for contextual logging.
- * - Ensures cleanup of MDC after request processing completes.
+ * - Ensures cleanup of MDC after request processing completes, including any client ID attached
+ *   while handling the request.
+ *
+ * @see no.liflig.http4k.setup.attachClientLog
  *
  * Usage:
  * - Typically used as part of an HTTP filter chain to support distributed tracing or debugging.
@@ -38,6 +46,7 @@ import org.slf4j.MDC
  * Companion object constants:
  * - `REQUEST_ID_HEADER`: Header name for the request ID.
  * - `USER_ID_HEADER`: Header name for the user ID.
+ * - `CLIENT_ID_MDC_KEY`: MDC key for the client ID, written by `attachClientId`.
  *
  * Companion object utilities:
  * - Regular expression pattern (`inputRequestIdPattern`) for validating the request ID format.
@@ -65,7 +74,8 @@ class RequestHeaderMdcFilter : Filter {
       val inputUserId = request.header(USER_ID_HEADER)
 
       try {
-        // Add keys
+        // Add keys. The user ID is put unconditionally, so the key is present with a null value
+        // when the request carries no X-User-ID header.
         MDC.put(REQUEST_ID_MDC_KEY, requestIdChain.joinToString(","))
         MDC.put(USER_ID_MDC_KEY, inputUserId)
         // Handle request
@@ -73,9 +83,12 @@ class RequestHeaderMdcFilter : Filter {
         // Add request ID to the response
         response.header(REQUEST_ID_HEADER, requestId.toString())
       } finally {
-        // Remove keys
+        // Remove keys. CLIENT_ID_MDC_KEY is not set here, but by
+        // [attachClientLog][no.liflig.http4k.setup.attachClientLog] while the request is handled -
+        // we clear it so it cannot leak into the next request on this thread.
         MDC.remove(REQUEST_ID_MDC_KEY)
         MDC.remove(USER_ID_MDC_KEY)
+        MDC.remove(CLIENT_ID_MDC_KEY)
       }
     }
   }
@@ -85,6 +98,7 @@ class RequestHeaderMdcFilter : Filter {
     internal const val REQUEST_ID_MDC_KEY = "requestIdChain"
     internal const val USER_ID_HEADER = "X-User-ID"
     internal const val USER_ID_MDC_KEY = USER_ID_HEADER
+    internal const val CLIENT_ID_MDC_KEY = "clientId"
 
     // Patter for requestId, based on source https://stackoverflow.com/a/13653180
     private const val SINGLE_REQUEST_ID_PATTERN =

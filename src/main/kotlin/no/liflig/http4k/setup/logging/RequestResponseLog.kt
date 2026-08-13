@@ -10,6 +10,7 @@ import java.time.Instant
 import java.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import no.liflig.http4k.setup.ClientLog
 import no.liflig.http4k.setup.logging.json.InstantSerializer
 import no.liflig.http4k.setup.logging.json.ThrowableSerializer
 import no.liflig.http4k.setup.logging.json.UUIDSerializer
@@ -26,11 +27,30 @@ data class RequestResponseLog<PrincipalLogT : PrincipalLog>(
      * chain, and will always reference this request itself and have the same value as [requestId].
      */
     val requestIdChain: List<UUID>,
+    /**
+     * From the `X-User-ID` request header.
+     *
+     * Caller-supplied and unverified: anyone who can reach the API can set this header to any
+     * value. Treat it as a hint, not as evidence of who called. [client] is verified, and differs
+     * in that respect.
+     */
     val requestUserId: String?,
     val request: RequestLog,
     val response: ResponseLog,
     /** The [Principal][PrincipalLog] that executed the request. */
     val principal: PrincipalLogT?,
+    /**
+     * The machine-to-machine client that called us, if the application attached one with
+     * [attachClientLog][no.liflig.http4k.setup.attachClientLog].
+     *
+     * Unlike [requestUserId], this is only as trustworthy as the application's own token
+     * verification - the value never comes from an unverified token.
+     *
+     * Defaults to null, unlike [principal] and the other fields here, because it was added to an
+     * existing log schema: entries written before it existed have no `client` key, and
+     * kotlinx.serialization requires a default for a property to be optional when reading.
+     */
+    val client: ClientLog? = null,
     /** Request duration in ms. */
     val durationMs: Long,
     /** Throwable during handling of request/response. */

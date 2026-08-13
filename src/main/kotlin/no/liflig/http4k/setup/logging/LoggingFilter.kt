@@ -114,6 +114,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
                       body = responseBody?.body,
                   ),
               principal = principalLog(request),
+              client = RequestContext.getClientLog(request),
               durationMs = duration.toMillis(),
               throwable = RequestContext.getExceptionForLog(request),
               status = NormalizedStatus.from(response),

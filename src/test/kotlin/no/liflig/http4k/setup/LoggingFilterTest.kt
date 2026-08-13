@@ -112,6 +112,7 @@ class LoggingFilterTest {
     val log = logs.first()
     log.requestUserId shouldBe "f5219811-cd2c-4883-9c3b-b51b0d3cdefa"
     log.principal shouldBe CustomPrincipalLog
+    log.client shouldBe null
     log.request.body shouldBe StringBodyLog("")
     log.request.method shouldBe "GET"
     log.request.size shouldBe 0
@@ -120,6 +121,28 @@ class LoggingFilterTest {
     log.response.size shouldBe 11
     log.response.statusCode shouldBe 200
     log.status?.code shouldBe NormalizedStatusCode.OK
+  }
+
+  @Test
+  fun `an attached client log ends up in the request log`() {
+    val logs: MutableList<RequestResponseLog<CustomPrincipalLog>> = mutableListOf()
+
+    val loggingFilter =
+        LoggingFilter(
+            principalLog = { CustomPrincipalLog },
+            logHandler = { log -> logs.add(log) },
+        )
+
+    val handler =
+        RequestContextFilter().then(RequestHeaderMdcFilter()).then(loggingFilter).then { request ->
+          request.attachClientLog(ClientLog(clientId = "my-client-id"))
+          Response(Status.OK)
+        }
+
+    handler(Request(Method.GET, "/some/url")).status shouldBe Status.OK
+
+    logs shouldHaveSize 1
+    logs.first().client shouldBe ClientLog(clientId = "my-client-id")
   }
 
   @Test

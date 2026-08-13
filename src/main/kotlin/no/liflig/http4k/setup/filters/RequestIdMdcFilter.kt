@@ -48,6 +48,10 @@ class RequestIdMdcFilter : Filter {
         response.header(HEADER_NAME, requestId.toString())
       } finally {
         MDC.remove(MDC_KEY)
+        // Not set here, but by [attachClientLog][no.liflig.http4k.setup.attachClientLog] while the
+        // request is handled. We clear it so it cannot leak into the next request on this thread,
+        // for as long as this deprecated filter is still in use.
+        MDC.remove(RequestHeaderMdcFilter.CLIENT_ID_MDC_KEY)
       }
     }
   }
