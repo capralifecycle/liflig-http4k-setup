@@ -5,6 +5,7 @@ import java.time.Instant
 import kotlinx.serialization.KSerializer
 import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.context.RequestContext
+import no.liflig.http4k.setup.errorhandling.problemDetailsContentType
 import no.liflig.http4k.setup.filters.RequestHeaderMdcFilter
 import no.liflig.http4k.setup.normalization.NormalizedStatus
 import no.liflig.logging.LogLevel
@@ -63,6 +64,7 @@ class LoggingFilter<PrincipalLogT : PrincipalLog>(
     private val contentTypesToLog: List<ContentType> =
         listOf(
             ContentType.APPLICATION_JSON,
+            problemDetailsContentType,
             ContentType.APPLICATION_XML,
             ContentType.APPLICATION_FORM_URLENCODED,
             ContentType.TEXT_PLAIN,
