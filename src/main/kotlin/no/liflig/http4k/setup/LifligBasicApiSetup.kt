@@ -6,6 +6,7 @@ import no.liflig.http4k.setup.errorhandling.ContractLensErrorResponseRenderer
 import no.liflig.http4k.setup.errorhandling.LastResortCatchAllThrowablesFilter
 import no.liflig.http4k.setup.errorhandling.PublicExceptionFilter
 import no.liflig.http4k.setup.errorhandling.StandardErrorResponseBodyRenderer
+import no.liflig.http4k.setup.errorhandling.problemDetailsContentType
 import no.liflig.http4k.setup.filters.RequestHeaderMdcFilter
 import no.liflig.http4k.setup.filters.http4kOpenTelemetryFilter
 import no.liflig.http4k.setup.logging.LoggingFilter
@@ -72,6 +73,7 @@ class LifligBasicApiSetup<PrincipalLogT : PrincipalLog>(
     private val contentTypesToLog: List<ContentType> =
         listOf(
             ContentType.APPLICATION_JSON,
+            problemDetailsContentType,
             ContentType.APPLICATION_XML,
             ContentType.APPLICATION_FORM_URLENCODED,
             ContentType.TEXT_PLAIN,

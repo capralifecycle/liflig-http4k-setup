@@ -419,6 +419,73 @@ class LoggingFilterTest {
 
   private val jsonStringBodyLens = Body.string(ContentType.APPLICATION_JSON).toLens()
 
+  @Test
+  fun `filter logs raw problem JSON with charset as structured JSON`() {
+    val logs = mutableListOf<RequestResponseLog<CustomPrincipalLog>>()
+    val body = """{"code":"DUPLICATE_LOAD_UNIT","title":"Conflict"}"""
+    val handler =
+        RequestHeaderMdcFilter()
+            .then(
+                LoggingFilter(
+                    principalLog = { CustomPrincipalLog },
+                    logHandler = { logs.add(it) },
+                    includeBody = true,
+                ),
+            )
+            .then {
+              Response(Status.CONFLICT)
+                  .header("Content-Type", "application/problem+json; charset=utf-8")
+                  .body(body)
+            }
+
+    handler(Request(Method.GET, "/example")).bodyString() shouldBe body
+
+    logs.shouldHaveSize(1).first().response.body.jsonBodyLog() shouldBe
+        rawJson(body, validJson = true)
+  }
+
+  @Test
+  fun `basic API setup logs standard problem responses with error-only logging`() {
+    val logs = mutableListOf<RequestResponseLog<CustomPrincipalLog>>()
+    val handler =
+        LifligBasicApiSetup(
+                logHandler = { log: RequestResponseLog<CustomPrincipalLog> -> logs.add(log) },
+                logHttpBodyOnError = true,
+            )
+            .create(principalLog = { CustomPrincipalLog })
+            .coreFilters
+            .then { request ->
+              errorResponse(request, Status.CONFLICT, "Problem", detail = "Details")
+            }
+
+    val response = handler(Request(Method.GET, "/example"))
+
+    response.status shouldBe Status.CONFLICT
+    logs.shouldHaveSize(1).first().response.body.jsonBodyLog() shouldBe
+        rawJson(
+            """{"title":"Problem","detail":"Details","status":409,"instance":"/example"}""",
+            validJson = true,
+        )
+  }
+
+  @Test
+  fun `custom content types can exclude problem responses from logging`() {
+    val logs = mutableListOf<RequestResponseLog<CustomPrincipalLog>>()
+    val handler =
+        LifligBasicApiSetup(
+                logHandler = { log: RequestResponseLog<CustomPrincipalLog> -> logs.add(log) },
+                logHttpBodyOnError = true,
+                contentTypesToLog = listOf(ContentType.APPLICATION_JSON),
+            )
+            .create(principalLog = { CustomPrincipalLog })
+            .coreFilters
+            .then { request -> errorResponse(request, Status.CONFLICT, "Conflict") }
+
+    handler(Request(Method.GET, "/example")).status shouldBe Status.CONFLICT
+
+    logs.shouldHaveSize(1).first().response.body.shouldBeNull()
+  }
+
   @Serializable
   data class ExampleBody(val type: String) {
     companion object {

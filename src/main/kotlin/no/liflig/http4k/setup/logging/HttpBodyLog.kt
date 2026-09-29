@@ -8,6 +8,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import no.liflig.http4k.setup.context.RequestContext
 import no.liflig.http4k.setup.context.ResponseContext
+import no.liflig.http4k.setup.errorhandling.problemDetailsContentType
 import no.liflig.http4k.setup.logging.HttpBodyLog.Companion.MAX_LOGGED_BODY_SIZE
 import no.liflig.logging.RawJson
 import no.liflig.logging.getLogger
@@ -77,9 +78,13 @@ sealed interface HttpBodyLog {
         val bodyString = httpMessage.bodyString()
         bodySize = bodyString.length.toLong()
 
-        // If Content-Type is application/json, then we try to include it as JSON on the log
+        // For JSON and Problem Details, try to include the body as JSON on the log
         // (passing validJson = false to rawJson, since we can't be sure that the JSON is valid)
-        if (Header.CONTENT_TYPE(httpMessage)?.value == ContentType.APPLICATION_JSON.value) {
+        val contentType = Header.CONTENT_TYPE(httpMessage)?.value
+        if (
+            contentType == ContentType.APPLICATION_JSON.value ||
+                contentType == problemDetailsContentType.value
+        ) {
           return HttpBodyLogWithSize(
               JsonBodyLog(rawJson(bodyString, validJson = false)),
               size = bodySize,
