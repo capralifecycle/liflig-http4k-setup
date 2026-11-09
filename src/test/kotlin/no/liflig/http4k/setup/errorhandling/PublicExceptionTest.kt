@@ -1,6 +1,7 @@
 package no.liflig.http4k.setup.errorhandling
 
 import io.kotest.assertions.asClue
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -9,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.PrintStream
 import java.nio.ByteBuffer
+import kotlinx.serialization.SerializationException
 import no.liflig.http4k.setup.LifligUserPrincipalLog
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.testutils.useHttpServer
@@ -108,6 +110,55 @@ class PublicExceptionTest {
 
     logs.shouldHaveSize(1)
     logs.first().throwable.shouldBeInstanceOf<PublicException>()
+  }
+
+  @Test
+  fun `PublicException wrapped in SerializationException on LensFailure is used as response`() {
+    val response =
+        useHttpServer(
+            httpHandler = { request ->
+              throw LensFailure(
+                  cause =
+                      SerializationException(
+                          "Wrapped by kotlinx-serialization",
+                          PublicException(
+                              ErrorCode.BAD_REQUEST,
+                              publicMessage = "Invalid amount",
+                          ),
+                      ),
+                  target = request,
+              )
+            },
+        ) { (httpClient, baseUrl) ->
+          httpClient(Request(Method.GET, "${baseUrl}/api/test"))
+        }
+
+    response.status shouldBe Status.BAD_REQUEST
+    ErrorResponseBody.bodyLens(response).title shouldBe "Invalid amount"
+  }
+
+  @Test
+  fun `PublicExceptionFilter maps PublicException wrapped in SerializationException`() {
+    val handler =
+        PublicExceptionFilter().then {
+          throw SerializationException(
+              "Wrapped by kotlinx-serialization",
+              PublicException(ErrorCode.FORBIDDEN, publicMessage = "Not allowed"),
+          )
+        }
+
+    val response = handler(Request(Method.GET, "/api/test"))
+
+    response.status shouldBe Status.FORBIDDEN
+    ErrorResponseBody.bodyLens(response).title shouldBe "Not allowed"
+  }
+
+  @Test
+  fun `PublicExceptionFilter rethrows SerializationException without PublicException cause`() {
+    val handler =
+        PublicExceptionFilter().then { throw SerializationException("Not a PublicException") }
+
+    shouldThrow<SerializationException> { handler(Request(Method.GET, "/api/test")) }
   }
 
   @Test

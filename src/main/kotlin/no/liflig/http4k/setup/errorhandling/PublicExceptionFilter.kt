@@ -1,5 +1,6 @@
 package no.liflig.http4k.setup.errorhandling
 
+import kotlinx.serialization.SerializationException
 import no.liflig.http4k.setup.errorResponse
 import no.liflig.logging.LogField
 import no.liflig.logging.LogLevel
@@ -29,9 +30,30 @@ class PublicExceptionFilter : Filter {
         nextHandler(request)
       } catch (e: PublicException) {
         e.toErrorResponse(request)
+      } catch (e: SerializationException) {
+        // Since kotlinx-serialization 1.12, exceptions thrown from constructors/init blocks of
+        // `@Serializable` classes are wrapped in a `JsonDecodingException`
+        val publicException = e.findPublicExceptionInCauseChain() ?: throw e
+        publicException.toErrorResponse(request)
       }
     }
   }
+}
+
+/**
+ * Returns the first [PublicException] in the cause chain of this throwable (including itself), or
+ * `null` if there is none.
+ */
+internal fun Throwable.findPublicExceptionInCauseChain(): PublicException? {
+  val visited = mutableSetOf<Throwable>()
+  var current: Throwable? = this
+  while (current != null && visited.add(current)) {
+    if (current is PublicException) {
+      return current
+    }
+    current = current.cause
+  }
+  return null
 }
 
 /**

@@ -14,6 +14,8 @@ import no.liflig.http4k.setup.context.ResponseContext
 import no.liflig.http4k.setup.errorhandling.ErrorResponseBody
 import no.liflig.http4k.setup.logging.RequestResponseLog
 import no.liflig.http4k.setup.testutils.useHttpServer
+import no.liflig.publicexception.ErrorCode
+import no.liflig.publicexception.PublicException
 import org.http4k.core.ContentType
 import org.http4k.core.Method
 import org.http4k.core.Request
@@ -182,6 +184,29 @@ class JsonBodyLensTest {
 
     response.title shouldBe "Failed to parse request body" // Default error response
     response.detail shouldBe "Invalid example data (${exception.cause.shouldNotBeNull().message})"
+  }
+
+  @Serializable
+  private data class DtoWithValidation(val amount: Int) {
+    init {
+      if (amount < 0) {
+        throw PublicException(
+            ErrorCode.BAD_REQUEST,
+            publicMessage = "Amount must be non-negative",
+        )
+      }
+    }
+  }
+
+  @Test
+  fun `PublicException thrown in init block of serializable class is used as error response`() {
+    val bodyLens = createJsonBodyLens(DtoWithValidation.serializer())
+
+    val (response, log) = getServerErrorResponse(bodyLens, requestBody = """{"amount":-1}""")
+
+    log.throwable.shouldBeInstanceOf<PublicException>()
+    response.title shouldBe "Amount must be non-negative"
+    response.status shouldBe 400
   }
 
   /**

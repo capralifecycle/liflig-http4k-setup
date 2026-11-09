@@ -4,6 +4,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import no.liflig.http4k.setup.context.RequestContext
 import no.liflig.http4k.setup.context.ResponseContext
+import no.liflig.http4k.setup.errorhandling.findPublicExceptionInCauseChain
 import no.liflig.publicexception.ErrorCode
 import no.liflig.publicexception.PublicException
 import org.http4k.core.ContentType
@@ -95,8 +96,10 @@ fun <T> createJsonBodyLens(
                         failures = jsonBodyLensMetas.map(::Invalid),
                         cause =
                             // If a serializer throws a PublicException, then we use that as the
-                            // failure cause - otherwise, we construct an InvalidJsonBody exception
-                            e as? PublicException
+                            // failure cause - otherwise, we construct an InvalidJsonBody exception.
+                            // kotlinx-serialization (since 1.12) may wrap it in a
+                            // JsonDecodingException, so we search the cause chain.
+                            e.findPublicExceptionInCauseChain()
                                 ?: InvalidJsonBody(
                                     errorResponse,
                                     errorResponseDetail,
