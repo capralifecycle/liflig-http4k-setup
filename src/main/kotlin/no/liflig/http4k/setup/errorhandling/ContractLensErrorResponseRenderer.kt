@@ -1,7 +1,6 @@
 package no.liflig.http4k.setup.errorhandling
 
 import no.liflig.http4k.setup.context.RequestContext
-import no.liflig.publicexception.PublicException
 import org.http4k.contract.ErrorResponseRenderer
 import org.http4k.core.Request
 import org.http4k.core.Response
@@ -26,11 +25,14 @@ class ContractLensErrorResponseRenderer(
     val request = lensFailure.target
     check(request is Request)
 
-    // If the cause of the LensFailure was a PublicException, then we use that as the error response
-    val cause = lensFailure.cause
-    if (cause is PublicException) {
+    // If the cause of the LensFailure was a PublicException, then we use that as the error
+    // response.
+    // We search the whole cause chain, since kotlinx-serialization (since 1.12) wraps exceptions
+    // thrown from `@Serializable` class constructors/init blocks in a `JsonDecodingException`.
+    val publicException = lensFailure.cause?.findPublicExceptionInCauseChain()
+    if (publicException != null) {
       // `toErrorResponse` calls `RequestContext.setExceptionForLog` for us
-      return cause.toErrorResponse(request)
+      return publicException.toErrorResponse(request)
     }
 
     RequestContext.setExceptionForLog(request, lensFailure)
