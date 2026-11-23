@@ -70,7 +70,7 @@ jobs:
           if [ "$CONDITIONAL_RELEASE" = "true" ]; then
             echo "Releasing library with tag '$TAG'"
             # NOTE: Customize commands according to your project's needs, e.g.:
-            # mvn -B sonar:sonar sourceCjar deploy scm:tag -P gh-actions-build -DGIT_COMMIT_ID="$GITHUB_SHA" \
+            # mvn -B source:jar deploy scm:tag -P gh-actions-build -DGIT_COMMIT_ID="$GITHUB_SHA" \
             #   org.apache.maven.plugins:maven-enforcer-plugin:3.0.0-M3:enforce -Drules=requireReleaseDeps
             mvn -B source:jar deploy scm:tag -Drevision="$TAG" -Dtag="$TAG" \
               org.apache.maven.plugins:maven-enforcer-plugin:3.0.0-M3:enforce -Drules=requireReleaseDeps
